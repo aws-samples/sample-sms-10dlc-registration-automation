@@ -1,0 +1,353 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  10DLC Registration Automation — Step Functions + EventBridge pipeline
+  for automated brand, vetting, campaign registration, and phone number provisioning.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        REGISTRATIONS_TABLE: !Ref RegistrationsTable
+        UPLOAD_BUCKET: !Ref UploadBucket
+        STATE_MACHINE_ARN: !Ref RegistrationStateMachine
+        NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email address for registration status notifications
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: CORS allowed origin for the front end
+
+Resources:
+
+  # ============================================================
+  # DynamoDB — Registration state tracking
+  # ============================================================
+  RegistrationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-registrations'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: requestId
+          AttributeType: S
+        - AttributeName: brandRegId
+          AttributeType: S
+        - AttributeName: campaignRegId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: requestId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: brand-reg-index
+          KeySchema:
+            - AttributeName: brandRegId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: campaign-reg-index
+          KeySchema:
+            - AttributeName: campaignRegId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ============================================================
+  # S3 — File upload staging bucket
+  # ============================================================
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-uploads-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: AutoDeleteUploads
+            Status: Enabled
+            ExpirationInDays: 90
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - !Ref AllowedOrigin
+            AllowedMethods:
+              - PUT
+            AllowedHeaders:
+              - Content-Type
+            MaxAge: 3600
+
+  # ============================================================
+  # SNS — Notifications
+  # ============================================================
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-notifications'
+
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+  # ============================================================
+  # API Gateway
+  # ============================================================
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref AllowedOrigin
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+
+  # ============================================================
+  # Lambda Functions
+  # ============================================================
+
+  # Intake — receives form submission, writes to DynamoDB, starts Step Functions
+  IntakeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/intake/
+      Handler: app.handler
+      Events:
+        SubmitRegistration:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /api/submit
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt RegistrationStateMachine.Name
+
+  # Presigned URL generator
+  PresignedUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/presigned_url/
+      Handler: app.handler
+      Events:
+        GetUploadUrl:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /api/upload-url
+            Method: POST
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucket
+
+  # Brand Registration — create, populate, submit
+  BrandRegistrationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/brand_registration/
+      Handler: app.handler
+      Timeout: 120
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sms-voice:CreateRegistration
+                - sms-voice:PutRegistrationFieldValue
+                - sms-voice:SubmitRegistrationVersion
+              Resource: '*'
+
+  # Vetting — create, associate, submit
+  VettingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/vetting/
+      Handler: app.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sms-voice:CreateRegistration
+                - sms-voice:CreateRegistrationAssociation
+                - sms-voice:SubmitRegistrationVersion
+              Resource: '*'
+
+  # Campaign Registration — create, associate brand, populate, submit
+  CampaignRegistrationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/campaign_registration/
+      Handler: app.handler
+      Timeout: 120
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - S3ReadPolicy:
+            BucketName: !Ref UploadBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sms-voice:CreateRegistration
+                - sms-voice:CreateRegistrationAssociation
+                - sms-voice:PutRegistrationFieldValue
+                - sms-voice:CreateRegistrationAttachment
+                - sms-voice:SubmitRegistrationVersion
+              Resource: '*'
+
+  # Phone Number — request + associate with campaign
+  PhoneNumberFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/phone_number/
+      Handler: app.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sms-voice:RequestPhoneNumber
+                - sms-voice:CreateRegistrationAssociation
+              Resource: '*'
+
+  # Event Router — EventBridge → lookup task token → SendTaskSuccess/Failure
+  EventRouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/event_router/
+      Handler: app.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: '*'
+
+  # Notification — send alerts via SNS
+  NotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/notification/
+      Handler: app.handler
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicArn: !Ref NotificationTopic
+
+  # Resume — human-in-the-loop endpoint to resume after manual fix
+  ResumeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/resume/
+      Handler: app.handler
+      Events:
+        ResumeRegistration:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /api/resume/{requestId}
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RegistrationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+              Resource: '*'
+
+  # ============================================================
+  # EventBridge Rule — Registration Status Changes
+  # ============================================================
+  RegistrationStatusRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${AWS::StackName}-registration-status'
+      Description: Captures EUM SMS registration status change events
+      EventPattern:
+        source:
+          - aws.sms-voice
+        detail-type:
+          - Registration Status Change
+      Targets:
+        - Arn: !GetAtt EventRouterFunction.Arn
+          Id: event-router
+
+  EventRouterPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EventRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt RegistrationStatusRule.Arn
+
+  # ============================================================
+  # Step Functions State Machine
+  # ============================================================
+  RegistrationStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub '${AWS::StackName}-workflow'
+      DefinitionUri: statemachine/registration_workflow.asl.json
+      DefinitionSubstitutions:
+        BrandRegistrationFunctionArn: !GetAtt BrandRegistrationFunction.Arn
+        VettingFunctionArn: !GetAtt VettingFunction.Arn
+        CampaignRegistrationFunctionArn: !GetAtt CampaignRegistrationFunction.Arn
+        PhoneNumberFunctionArn: !GetAtt PhoneNumberFunction.Arn
+        NotificationFunctionArn: !GetAtt NotificationFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BrandRegistrationFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref VettingFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CampaignRegistrationFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PhoneNumberFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref NotificationFunction
+
+# ============================================================
+# Outputs
+# ============================================================
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  UploadBucketName:
+    Description: S3 bucket for file uploads
+    Value: !Ref UploadBucket
+  StateMachineArn:
+    Description: Step Functions state machine ARN
+    Value: !Ref RegistrationStateMachine
+  NotificationTopicArn:
+    Description: SNS topic for notifications
+    Value: !Ref NotificationTopic

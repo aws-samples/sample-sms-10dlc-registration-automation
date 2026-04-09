@@ -1,0 +1,288 @@
+<mxfile host="app.diagrams.net" modified="2026-04-07T00:00:00.000Z" agent="Kiro" version="24.0.0" type="device">
+  <diagram id="10dlc-arch" name="10DLC Registration Automation">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============================================================ -->
+        <!-- Title -->
+        <!-- ============================================================ -->
+        <mxCell id="title" value="10DLC Registration Automation — System Architecture" style="text;html=1;fontSize=20;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- User / Browser -->
+        <!-- ============================================================ -->
+        <mxCell id="user" value="User&#xa;(Browser)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.users;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="200" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="frontend" value="Registration&#xa;Wizard&#xa;(Static HTML)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.client;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="360" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_user_fe" style="edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" source="user" target="frontend" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- API Gateway -->
+        <!-- ============================================================ -->
+        <mxCell id="apigw" value="Amazon API&#xa;Gateway&#xa;(HTTP API)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="260" y="280" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_fe_apigw" value="POST /api/submit&#xa;POST /api/upload-url&#xa;POST /api/resume/{id}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="frontend" target="apigw" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- S3 Upload Bucket -->
+        <!-- ============================================================ -->
+        <mxCell id="s3" value="Amazon S3&#xa;(Upload Staging)&#xa;90-day lifecycle" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_fe_s3" value="Presigned URL&#xa;PUT (direct upload)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;fontSize=10;" edge="1" source="frontend" target="s3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- Lambda Functions -->
+        <!-- ============================================================ -->
+
+        <!-- Intake Lambda -->
+        <mxCell id="lambda_intake" value="Intake&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="200" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Presigned URL Lambda -->
+        <mxCell id="lambda_presigned" value="Presigned URL&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="360" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Resume Lambda -->
+        <mxCell id="lambda_resume" value="Resume&#xa;Lambda&#xa;(Human-in-loop)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="480" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- API GW to Lambdas -->
+        <mxCell id="e_apigw_intake" value="/submit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="apigw" target="lambda_intake" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_apigw_presigned" value="/upload-url" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="apigw" target="lambda_presigned" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_apigw_resume" value="/resume/{id}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="apigw" target="lambda_resume" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- DynamoDB -->
+        <!-- ============================================================ -->
+        <mxCell id="dynamodb" value="Amazon&#xa;DynamoDB&#xa;(Registrations)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="280" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_intake_ddb" value="Write form data&#xa;+ start execution" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="lambda_intake" target="dynamodb" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_resume_ddb" value="Lookup task token&#xa;SendTaskSuccess" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;dashed=1;" edge="1" source="lambda_resume" target="dynamodb" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- Step Functions -->
+        <!-- ============================================================ -->
+        <mxCell id="sfn" value="AWS Step&#xa;Functions&#xa;(Registration&#xa;Workflow)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.step_functions;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="660" y="120" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_intake_sfn" value="StartExecution" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="lambda_intake" target="sfn" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- Step Functions Worker Lambdas (inside SFN boundary) -->
+        <!-- ============================================================ -->
+        <mxCell id="sfn_group" value="" style="rounded=1;whiteSpace=wrap;dashed=1;dashPattern=5 5;strokeColor=#0073bb;fillColor=none;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="830" y="80" width="340" height="440" as="geometry" />
+        </mxCell>
+        <mxCell id="sfn_group_label" value="Step Functions Workflow States" style="text;html=1;fontSize=13;fontStyle=1;align=center;fillColor=#0073bb;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="90" width="240" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lambda_brand" value="Brand&#xa;Registration&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="860" y="130" width="50" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="wait_brand" value="Wait for&#xa;Brand&#xa;Approval" style="shape=ellipse;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="135" width="80" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lambda_vetting" value="Vetting&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="130" width="50" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="wait_vetting" value="Wait for&#xa;Vetting" style="shape=ellipse;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="860" y="220" width="80" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lambda_campaign" value="Campaign&#xa;Registration&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="975" y="210" width="50" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="wait_campaign" value="Wait for&#xa;Campaign&#xa;Approval" style="shape=ellipse;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="220" width="80" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lambda_phone" value="Phone Number&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="860" y="310" width="50" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="state_complete" value="✅&#xa;Complete" style="shape=ellipse;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="975" y="315" width="80" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="state_rejected" value="⚠️ Rejected&#xa;(Human-in-loop)" style="shape=ellipse;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="310" width="90" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- SFN internal flow arrows -->
+        <mxCell id="e_brand_wait" style="fontSize=9;rounded=1;" edge="1" source="lambda_brand" target="wait_brand" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_wait_vetting" style="fontSize=9;rounded=1;" edge="1" source="wait_brand" target="lambda_vetting" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vetting_wait" style="fontSize=9;rounded=1;" edge="1" source="lambda_vetting" target="wait_vetting" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_waitvet_campaign" style="fontSize=9;rounded=1;" edge="1" source="wait_vetting" target="lambda_campaign" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_campaign_wait" style="fontSize=9;rounded=1;" edge="1" source="lambda_campaign" target="wait_campaign" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_waitcamp_phone" style="fontSize=9;rounded=1;" edge="1" source="wait_campaign" target="lambda_phone" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_phone_complete" style="fontSize=9;rounded=1;" edge="1" source="lambda_phone" target="state_complete" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_wait_rejected" value="REQUIRES_UPDATES" style="fontSize=9;rounded=1;dashed=1;strokeColor=#b85450;" edge="1" source="wait_campaign" target="state_rejected" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- SFN to DynamoDB -->
+        <mxCell id="e_sfn_ddb" value="Read form data&#xa;Store task tokens" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;dashed=1;" edge="1" source="sfn" target="dynamodb" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- SFN to SFN group -->
+        <mxCell id="e_sfn_group" value="Orchestrates" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="sfn" target="lambda_brand" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- AWS End User Messaging SMS -->
+        <!-- ============================================================ -->
+        <mxCell id="eum_sms" value="AWS End User&#xa;Messaging SMS&#xa;(Registration APIs)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sms;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="440" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_workers_eum" value="create-registration&#xa;put-registration-field-value&#xa;submit-registration-version&#xa;request-phone-number" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=9;" edge="1" source="lambda_phone" target="eum_sms" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- S3 to Campaign Lambda -->
+        <mxCell id="e_s3_campaign" value="create-registration-attachment&#xa;(reads from S3)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=9;dashed=1;" edge="1" source="s3" target="lambda_campaign" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- EventBridge -->
+        <!-- ============================================================ -->
+        <mxCell id="eventbridge" value="Amazon&#xa;EventBridge" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.eventbridge;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="280" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_eum_eb" value="Registration&#xa;Status Change&#xa;events" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="eum_sms" target="eventbridge" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Event Router Lambda -->
+        <mxCell id="lambda_router" value="Event Router&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="140" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_eb_router" value="Rule: source=&#xa;aws.sms-voice" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="eventbridge" target="lambda_router" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_router_ddb" value="Lookup task token&#xa;by registration ID" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;dashed=1;" edge="1" source="lambda_router" target="dynamodb" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_router_sfn" value="SendTaskSuccess&#xa;/ SendTaskFailure" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;strokeColor=#0073bb;" edge="1" source="lambda_router" target="sfn" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- SNS Notifications -->
+        <!-- ============================================================ -->
+        <mxCell id="sns" value="Amazon SNS&#xa;(Notifications)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sns;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="440" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lambda_notify" value="Notification&#xa;Lambda" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="440" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_complete_notify" value="Status alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="state_complete" target="lambda_notify" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_rejected_notify" value="Rejection alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;strokeColor=#b85450;" edge="1" source="state_rejected" target="lambda_notify" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_notify_sns" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="lambda_notify" target="sns" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Email -->
+        <mxCell id="email" value="Email&#xa;(Operator)" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.email;labelBackgroundColor=none;sketch=0;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="440" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_sns_email" style="edgeStyle=orthogonalEdgeStyle;rounded=1;fontSize=10;" edge="1" source="sns" target="email" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- Legend -->
+        <!-- ============================================================ -->
+        <mxCell id="legend_box" value="" style="rounded=1;whiteSpace=wrap;dashed=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="660" width="400" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_title" value="Legend" style="text;html=1;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="665" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_solid" value="— Solid line: synchronous / direct call" style="text;html=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="690" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_dashed" value="- - Dashed line: async / read / reference" style="text;html=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="710" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_yellow" value="● Yellow ellipse: waitForTaskToken state" style="text;html=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="730" width="280" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

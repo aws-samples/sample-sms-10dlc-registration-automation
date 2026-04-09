@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10DLC Programmatic Registration Wizard</title>
+    <style>
+        :root {
+            --aws-orange: #ff9900;
+            --aws-dark: #232f3e;
+            --aws-light: #f2f3f3;
+            --aws-blue: #0073bb;
+            --aws-green: #1b660f;
+            --aws-red: #d13212;
+            --border: #d5dbdb;
+            --text: #16191f;
+            --text-secondary: #545b64;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--aws-light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        header {
+            background: var(--aws-dark);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        header h1 { font-size: 18px; font-weight: 600; }
+        header .badge {
+            background: var(--aws-orange);
+            color: var(--aws-dark);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+        /* Stepper */
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        .stepper::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+        .step-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1;
+            cursor: pointer;
+            flex: 1;
+        }
+        .step-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+            transition: all 0.2s;
+        }
+        .step-indicator.active .step-circle {
+            background: var(--aws-blue);
+            border-color: var(--aws-blue);
+            color: white;
+        }
+        .step-indicator.completed .step-circle {
+            background: var(--aws-green);
+            border-color: var(--aws-green);
+            color: white;
+        }
+        .step-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 80px;
+        }
+        .step-indicator.active .step-label { color: var(--aws-blue); font-weight: 600; }
+
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+            color: var(--aws-dark);
+        }
+        .card .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--aws-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 20px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Form elements */
+        .field { margin-bottom: 16px; }
+        .field label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .field .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .field .field-meta {
+            font-size: 11px;
+            color: #888;
+            font-family: monospace;
+            margin-bottom: 4px;
+        }
+        .field input[type="text"],
+        .field input[type="email"],
+        .field input[type="url"],
+        .field input[type="tel"],
+        .field select,
+        .field textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .field input:focus, .field select:focus, .field textarea:focus {
+            outline: none;
+            border-color: var(--aws-blue);
+            box-shadow: 0 0 0 2px rgba(0,115,187,0.15);
+        }
+        .field textarea { min-height: 80px; resize: vertical; }
+        .field .required::after {
+            content: ' *';
+            color: var(--aws-red);
+        }
+        .field input.invalid, .field select.invalid, .field textarea.invalid {
+            border-color: var(--aws-red);
+        }
+        .field .error-msg {
+            color: var(--aws-red);
+            font-size: 12px;
+            margin-top: 2px;
+            display: none;
+        }
+        .field .char-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: right;
+            margin-top: 2px;
+        }
+        .conditional-note {
+            background: #fef3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 24px;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-primary { background: var(--aws-blue); color: white; }
+        .btn-primary:hover { background: #005ea2; }
+        .btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--aws-light); }
+        .btn-generate { background: var(--aws-orange); color: var(--aws-dark); }
+        .btn-generate:hover { background: #ec8b00; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Output */
+        .output-section { margin-top: 24px; }
+        .output-section h3 { margin-bottom: 8px; font-size: 16px; }
+        .cli-block {
+            background: var(--aws-dark);
+            color: #e8e8e8;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .cli-block .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .cli-block .copy-btn:hover { background: rgba(255,255,255,0.25); }
+        .cli-block .comment { color: #7dcea0; }
+        .step-panel { display: none; }
+        .step-panel.active { display: block; }
+
+        /* Checkbox row */
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .checkbox-row input[type="checkbox"] { width: 16px; height: 16px; }
+        .checkbox-row label { font-weight: normal; margin-bottom: 0; }
+
+        /* Info box */
+        .info-box {
+            background: #e8f4fd;
+            border-left: 4px solid var(--aws-blue);
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>10DLC Programmatic Registration Wizard</h1>
+        <span class="badge">AWS End User Messaging SMS</span>
+    </header>
+
+    <div class="container">
+        <div class="stepper" role="navigation" aria-label="Registration steps">
+            <div class="step-indicator active" data-step="0" onclick="goToStep(0)">
+                <div class="step-circle">1</div>
+                <div class="step-label">Brand Info</div>
+            </div>
+            <div class="step-indicator" data-step="1" onclick="goToStep(1)">
+                <div class="step-circle">2</div>
+                <div class="step-label">Brand Contact</div>
+            </div>
+            <div class="step-indicator" data-step="2" onclick="goToStep(2)">
+                <div class="step-circle">3</div>
+                <div class="step-label">Vetting</div>
+            </div>
+            <div class="step-indicator" data-step="3" onclick="goToStep(3)">
+                <div class="step-circle">4</div>
+                <div class="step-label">Campaign Info</div>
+            </div>
+            <div class="step-indicator" data-step="4" onclick="goToStep(4)">
+                <div class="step-circle">5</div>
+                <div class="step-label">Campaign Use Case</div>
+            </div>
+            <div class="step-indicator" data-step="5" onclick="goToStep(5)">
+                <div class="step-circle">6</div>
+                <div class="step-label">Messages</div>
+            </div>
+            <div class="step-indicator" data-step="6" onclick="goToStep(6)">
+                <div class="step-circle">7</div>
+                <div class="step-label">Generate CLI</div>
+            </div>
+        </div>
+
+        <!-- Step 0: Brand Company Info -->
+        <div class="step-panel active" id="step-0">
+            <div class="card">
+                <h2>Brand Registration — Company Information</h2>
+                <p class="subtitle">Section: companyInfo — All fields are required unless marked conditional.</p>
+
+                <div class="field">
+                    <label class="required" for="companyName">Legal Company Name</label>
+                    <div class="field-meta">FieldPath: companyInfo.companyName | TEXT | max 100</div>
+                    <div class="hint">Must exactly match the name on your IRS/tax registration.</div>
+                    <input type="text" id="companyName" maxlength="100" placeholder="Example Corp" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="taxIdIssuingCountry">Country of Tax Registration</label>
+                    <div class="field-meta">FieldPath: companyInfo.taxIdIssuingCountry | TEXT | exactly 2 chars</div>
+                    <div class="hint">Two-letter ISO country code, uppercase (e.g., US, CA, GB).</div>
+                    <input type="text" id="taxIdIssuingCountry" maxlength="2" placeholder="US" style="width:80px" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="taxId">Tax ID or Business Registration Number</label>
+                    <div class="field-meta">FieldPath: companyInfo.taxId | TEXT | max 21 chars | alphanumeric</div>
+                    <div class="hint">US: 9-digit EIN. Canada: Corporation number. Others: VAT ID.</div>
+                    <input type="text" id="taxId" maxlength="21" placeholder="123456789" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="legalType">Legal Form of Organization</label>
+                    <div class="field-meta">FieldPath: companyInfo.legalType | SELECT</div>
+                    <select id="legalType" required onchange="togglePublicProfitFields()">
+                        <option value="">— Select —</option>
+                        <option value="PRIVATE_PROFIT">Private for-profit</option>
+                        <option value="PUBLIC_PROFIT">Public for-profit</option>
+                        <option value="NON_PROFIT">Non-profit</option>
+                        <option value="GOVERNMENT">Government</option>
+                    </select>
+                </div>
+
+                <div id="publicProfitFields" style="display:none">
+                    <div class="conditional-note">The following fields are required because you selected <strong>Public for-profit</strong>.</div>
+
+                    <div class="field">
+                        <label class="required" for="stockSymbol">Stock Symbol</label>
+                        <div class="field-meta">FieldPath: companyInfo.stockSymbol | TEXT | max 10</div>
+                        <input type="text" id="stockSymbol" maxlength="10" placeholder="EXMPL">
+                    </div>
+
+                    <div class="field">
+                        <label class="required" for="stockExchange">Stock Exchange</label>
+                        <div class="field-meta">FieldPath: companyInfo.stockExchange | SELECT</div>
+                        <select id="stockExchange">
+                            <option value="">— Select —</option>
+                            <option value="NASDAQ">NASDAQ</option>
+                            <option value="NYSE">NYSE</option>
+                            <option value="AMEX">AMEX</option>
+                            <option value="AMX">AMX</option>
+                            <option value="ASX">ASX</option>
+                            <option value="B3">B3</option>
+                            <option value="BME">BME</option>
+                            <option value="BSE">BSE</option>
+                            <option value="FRA">FRA</option>
+                            <option value="ICEX">ICEX</option>
+                            <option value="JPX">JPX</option>
+                            <option value="JSE">JSE</option>
+                            <option value="KRX">KRX</option>
+                            <option value="LON">LON</option>
+                            <option value="NSE">NSE</option>
+                            <option value="OMX">OMX</option>
+                            <option value="SEHK">SEHK</option>
+                            <option value="SGX">SGX</option>
+                            <option value="SSE">SSE</option>
+                            <option value="STO">STO</option>
+                            <option value="SWX">SWX</option>
+                            <option value="SZSE">SZSE</option>
+                            <option value="TSX">TSX</option>
+                            <option value="TWSE">TWSE</option>
+                            <option value="VSE">VSE</option>
+                            <option value="OTHER">OTHER</option>
+                            <option value="NONE">NONE</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label class="required" for="businessContactEmail">Brand Verification Email</label>
+                        <div class="field-meta">FieldPath: companyInfo.businessContactEmail | TEXT | max 100</div>
+                        <div class="hint">Email domain must match your business domain. No distribution lists. Authentication email comes from noreply@auth.campaignregistry.com.</div>
+                        <input type="email" id="businessContactEmail" maxlength="100" placeholder="janedoe@example.com">
+                    </div>
+                </div>
+
+                <div class="section-title">Physical Business Address</div>
+
+                <div class="field">
+                    <label class="required" for="address">Street Address</label>
+                    <div class="field-meta">FieldPath: companyInfo.address | TEXT | max 100</div>
+                    <input type="text" id="address" maxlength="100" placeholder="123 Main Street" required>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="field">
+                        <label class="required" for="city">City</label>
+                        <div class="field-meta">FieldPath: companyInfo.city | TEXT | max 100</div>
+                        <input type="text" id="city" maxlength="100" placeholder="Seattle" required>
+                    </div>
+                    <div class="field">
+                        <label class="required" for="state">State or Region</label>
+                        <div class="field-meta">FieldPath: companyInfo.state | TEXT | max 50</div>
+                        <input type="text" id="state" maxlength="50" placeholder="WA" required>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="field">
+                        <label class="required" for="zipCode">Zip / Postal Code</label>
+                        <div class="field-meta">FieldPath: companyInfo.zipCode | TEXT | max 20</div>
+                        <input type="text" id="zipCode" maxlength="20" placeholder="98101" required>
+                    </div>
+                    <div class="field">
+                        <label class="required" for="isoCountryCode">Country</label>
+                        <div class="field-meta">FieldPath: companyInfo.isoCountryCode | TEXT | exactly 2 chars</div>
+                        <input type="text" id="isoCountryCode" maxlength="2" placeholder="US" style="width:80px" required>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <div></div>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Brand Contact Info →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1: Brand Contact Info -->
+        <div class="step-panel" id="step-1">
+            <div class="card">
+                <h2>Brand Registration — Contact Information</h2>
+                <p class="subtitle">Section: contactInfo — All fields are required.</p>
+
+                <div class="field">
+                    <label class="required" for="dbaName">Doing Business As (DBA) or Brand Name</label>
+                    <div class="field-meta">FieldPath: contactInfo.dbaName | TEXT | max 100</div>
+                    <div class="hint">Brand name if different from legal name.</div>
+                    <input type="text" id="dbaName" maxlength="100" placeholder="Example Corp" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="contactVertical">Vertical</label>
+                    <div class="field-meta">FieldPath: contactInfo.vertical | SELECT</div>
+                    <select id="contactVertical" required>
+                        <option value="">— Select —</option>
+                        <option value="AGRICULTURE">Agriculture</option>
+                        <option value="COMMUNICATION">Communication</option>
+                        <option value="CONSTRUCTION">Construction</option>
+                        <option value="EDUCATION">Education</option>
+                        <option value="ENERGY">Energy</option>
+                        <option value="ENTERTAINMENT">Entertainment</option>
+                        <option value="FINANCIAL">Financial</option>
+                        <option value="GAMBLING">Gambling</option>
+                        <option value="GOVERNMENT">Government</option>
+                        <option value="HEALTHCARE">Healthcare</option>
+                        <option value="HOSPITALITY">Hospitality</option>
+                        <option value="INSURANCE">Insurance</option>
+                        <option value="MANUFACTURING">Manufacturing</option>
+                        <option value="NGO">NGO</option>
+                        <option value="REAL_ESTATE">Real Estate</option>
+                        <option value="RETAIL">Retail</option>
+                        <option value="TECHNOLOGY">Technology</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="website">Company Website</label>
+                    <div class="field-meta">FieldPath: contactInfo.website | TEXT | max 100</div>
+                    <div class="hint">Must be publicly accessible. Include https://</div>
+                    <input type="url" id="website" maxlength="100" placeholder="https://www.example.com" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="supportEmail">Support Email</label>
+                    <div class="field-meta">FieldPath: contactInfo.supportEmail | TEXT | max 100</div>
+                    <div class="hint">Domain must match your website domain.</div>
+                    <input type="email" id="supportEmail" maxlength="100" placeholder="support@example.com" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="supportPhoneNumber">Support Phone Number</label>
+                    <div class="field-meta">FieldPath: contactInfo.supportPhoneNumber | TEXT | max 30</div>
+                    <div class="hint">E.164 format (e.g., +12065550142). Must be active.</div>
+                    <input type="tel" id="supportPhoneNumber" maxlength="30" placeholder="+12065550142" required>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Vetting →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Vetting -->
+        <div class="step-panel" id="step-2">
+            <div class="card">
+                <h2>Brand Vetting (Optional but Recommended)</h2>
+                <p class="subtitle">Vetting can increase your throughput limits. Without vetting: 75 msg/min to AT&T, 2,000 msg/day to T-Mobile.</p>
+
+                <div class="info-box">
+                    <strong>$40 non-refundable fee.</strong> Vetting scores are NOT applied retroactively to existing campaigns — vet your brand BEFORE creating campaigns. The vetting registration has no field definitions; it's just create, associate the brand, and submit.
+                </div>
+
+                <div class="checkbox-row">
+                    <input type="checkbox" id="enableVetting">
+                    <label for="enableVetting">Include brand vetting in the generated CLI commands</label>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Campaign Info →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Campaign Info -->
+        <div class="step-panel" id="step-3">
+            <div class="card">
+                <h2>Campaign Registration — Campaign Information</h2>
+                <p class="subtitle">Section: campaignInfo</p>
+
+                <div class="field">
+                    <label class="required" for="campaignName">Campaign Description</label>
+                    <div class="field-meta">FieldPath: campaignInfo.campaignName | TEXT | 40–4096 chars</div>
+                    <div class="hint">Identify who the sender is, who the recipient is, and why messages are being sent. Minimum 40 characters.</div>
+                    <textarea id="campaignName" minlength="40" maxlength="4096" placeholder="Example Corp will be sending One Time Password (OTP) messages to our customers who have explicitly opted in..." required oninput="updateCharCount(this, 'campaignNameCount')"></textarea>
+                    <div class="char-count" id="campaignNameCount">0 / 4096</div>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="campaignVertical">Vertical</label>
+                    <div class="field-meta">FieldPath: campaignInfo.vertical | SELECT</div>
+                    <select id="campaignVertical" required>
+                        <option value="">— Select —</option>
+                        <option value="AGRICULTURE">Agriculture</option>
+                        <option value="COMMUNICATION">Communication</option>
+                        <option value="CONSTRUCTION">Construction</option>
+                        <option value="EDUCATION">Education</option>
+                        <option value="ENERGY">Energy</option>
+                        <option value="ENTERTAINMENT">Entertainment</option>
+                        <option value="FINANCIAL">Financial</option>
+                        <option value="GAMBLING">Gambling</option>
+                        <option value="GOVERNMENT">Government</option>
+                        <option value="HEALTHCARE">Healthcare</option>
+                        <option value="HOSPITALITY">Hospitality</option>
+                        <option value="INSURANCE">Insurance</option>
+                        <option value="MANUFACTURING">Manufacturing</option>
+                        <option value="NGO">NGO</option>
+                        <option value="REAL_ESTATE">Real Estate</option>
+                        <option value="RETAIL">Retail</option>
+                        <option value="TECHNOLOGY">Technology</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="termsAndConditionsLink">Terms & Conditions URL (optional — provide URL or file, not both)</label>
+                    <div class="field-meta">FieldPath: campaignInfo.termsAndConditionsLink | TEXT | max 255</div>
+                    <input type="url" id="termsAndConditionsLink" maxlength="255" placeholder="https://www.example.com/terms">
+                </div>
+
+                <div class="field">
+                    <label for="privacyPolicyLink">Privacy Policy URL (optional — provide URL or file, not both)</label>
+                    <div class="field-meta">FieldPath: campaignInfo.privacyPolicyLink | TEXT | max 255</div>
+                    <input type="url" id="privacyPolicyLink" maxlength="255" placeholder="https://www.example.com/privacy">
+                </div>
+
+                <div class="field">
+                    <label class="required" for="optInWorkflow">Opt-in Workflow Description</label>
+                    <div class="field-meta">FieldPath: campaignInfo.optInWorkflow | TEXT | 40–2048 chars</div>
+                    <div class="hint">Explain end-to-end how a user explicitly consents to receive text messages. Include: program name, message frequency, T&C link, privacy policy link, STOP instructions, and "message and data rates may apply" disclosure. Minimum 40 characters.</div>
+                    <textarea id="optInWorkflow" minlength="40" maxlength="2048" required oninput="updateCharCount(this, 'optInWorkflowCount')" placeholder="Users opt in by creating an account on https://www.example.com and checking the SMS notifications checkbox during registration..."></textarea>
+                    <div class="char-count" id="optInWorkflowCount">0 / 2048</div>
+                </div>
+
+                <div class="field">
+                    <label for="optInScreenshotS3">Opt-in Screenshot S3 URL (optional)</label>
+                    <div class="field-meta">FieldPath: campaignInfo.optInScreenshot | ATTACHMENT | PNG/JPEG/PDF, max 500KB</div>
+                    <div class="hint">Required if opt-in is behind login, verbal, or on printed materials. Provide the S3 URI.</div>
+                    <input type="text" id="optInScreenshotS3" placeholder="s3://my-bucket/opt-in-screenshot.png">
+                </div>
+
+                <div class="field">
+                    <label for="optInKeyword">Opt-in Keyword (optional)</label>
+                    <div class="field-meta">FieldPath: campaignInfo.optInKeyword | TEXT | max 255</div>
+                    <input type="text" id="optInKeyword" maxlength="255" placeholder="JOIN">
+                </div>
+
+                <div class="field">
+                    <label class="required" for="optInMessage">Opt-in Confirmation Message</label>
+                    <div class="field-meta">FieldPath: campaignInfo.optInMessage | TEXT | 20–255 chars</div>
+                    <div class="hint">Include: brand name, "msg & data rates may apply", opt-out language.</div>
+                    <textarea id="optInMessage" minlength="20" maxlength="255" required oninput="updateCharCount(this, 'optInMessageCount')" placeholder="Example Corp: You have opted in to receive OTP messages. Msg & data rates may apply. Reply HELP for help or STOP to cancel."></textarea>
+                    <div class="char-count" id="optInMessageCount">0 / 255</div>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="helpMessage">HELP Message</label>
+                    <div class="field-meta">FieldPath: campaignInfo.helpMessage | TEXT | 20–255 chars</div>
+                    <div class="hint">Must include: brand name, customer care contact (phone and/or email).</div>
+                    <textarea id="helpMessage" minlength="20" maxlength="255" required oninput="updateCharCount(this, 'helpMessageCount')" placeholder="Example Corp Account Alerts: For help call 1-888-555-0142 or go to example.com. Msg&data rates may apply. Text STOP to cancel."></textarea>
+                    <div class="char-count" id="helpMessageCount">0 / 255</div>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="stopMessage">STOP Message</label>
+                    <div class="field-meta">FieldPath: campaignInfo.stopMessage | TEXT | 20–255 chars</div>
+                    <div class="hint">Must include: brand name, confirmation no further messages will be sent.</div>
+                    <textarea id="stopMessage" minlength="20" maxlength="255" required oninput="updateCharCount(this, 'stopMessageCount')" placeholder="You are unsubscribed from Example Corp Account Alerts. No more messages will be sent. Text back JOIN or call 1-888-555-0142."></textarea>
+                    <div class="char-count" id="stopMessageCount">0 / 255</div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Campaign Use Case →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Campaign Use Case & Capabilities -->
+        <div class="step-panel" id="step-4">
+            <div class="card">
+                <h2>Campaign Registration — Capabilities & Use Case</h2>
+                <p class="subtitle">Sections: campaignCapabilities + campaignUseCase</p>
+
+                <div class="section-title">Capabilities</div>
+
+                <div class="field">
+                    <label class="required" for="numberCapabilities">Number Capabilities</label>
+                    <div class="field-meta">FieldPath: campaignCapabilities.numberCapabilities | SELECT</div>
+                    <div class="hint">Cannot be changed after registration. Selecting voice increases review time.</div>
+                    <select id="numberCapabilities" required>
+                        <option value="SMS">SMS</option>
+                        <option value="SMS and MMS">SMS and MMS</option>
+                        <option value="SMS and VOICE">SMS and Voice</option>
+                        <option value="SMS and MMS and VOICE">SMS and MMS and Voice</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="messageType">Message Type (optional)</label>
+                    <div class="field-meta">FieldPath: campaignCapabilities.messageType | SELECT</div>
+                    <select id="messageType">
+                        <option value="">— Select —</option>
+                        <option value="Transactional">Transactional</option>
+                        <option value="Promotional">Promotional</option>
+                    </select>
+                </div>
+
+                <div class="section-title">Use Case</div>
+
+                <div class="field">
+                    <label class="required" for="useCase">Use Case</label>
+                    <div class="field-meta">FieldPath: campaignUseCase.useCase | SELECT</div>
+                    <select id="useCase" required onchange="toggleSubUseCases()">
+                        <option value="">— Select —</option>
+                        <option value="ACCOUNT_NOTIFICATION">Account Notification</option>
+                        <option value="CHARITY">Charity</option>
+                        <option value="CUSTOMER_CARE">Customer Care</option>
+                        <option value="DELIVERY_NOTIFICATION">Delivery Notification</option>
+                        <option value="FRAUD_ALERT">Fraud Alert</option>
+                        <option value="HIGHER_EDUCATION">Higher Education</option>
+                        <option value="LOW_VOLUME">Low Volume</option>
+                        <option value="MARKETING">Marketing</option>
+                        <option value="MIXED">Mixed</option>
+                        <option value="POLLING_VOTING">Polling and Voting</option>
+                        <option value="PUBLIC_SERVICE_ANNOUNCEMENT">Public Service Announcement</option>
+                        <option value="SECURITY_ALERT">Security Alert</option>
+                        <option value="TWO_FACTOR_AUTHENTICATION">Two-Factor Authentication</option>
+                    </select>
+                </div>
+
+                <div id="subUseCaseSection" style="display:none">
+                    <div class="field">
+                        <label class="required" for="subUseCases">Sub Use Cases (select 1–5)</label>
+                        <div class="field-meta">FieldPath: campaignUseCase.subUseCases | SELECT | 1–5 choices</div>
+                        <div class="hint">Required for MIXED (min 2) or LOW_VOLUME (min 1) use cases.</div>
+                        <select id="subUseCases" multiple size="10" style="height:auto">
+                            <option value="ACCOUNT_NOTIFICATION">Account Notification</option>
+                            <option value="CUSTOMER_CARE">Customer Care</option>
+                            <option value="DELIVERY_NOTIFICATION">Delivery Notification</option>
+                            <option value="FRAUD_ALERT">Fraud Alert</option>
+                            <option value="HIGHER_EDUCATION">Higher Education</option>
+                            <option value="MARKETING">Marketing</option>
+                            <option value="POLLING_VOTING">Polling and Voting</option>
+                            <option value="PUBLIC_SERVICE_ANNOUNCEMENT">Public Service Announcement</option>
+                            <option value="SECURITY_ALERT">Security Alert</option>
+                            <option value="TWO_FACTOR_AUTHENTICATION">Two-Factor Authentication</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="section-title">Compliance Acknowledgements</div>
+
+                <div class="field">
+                    <label class="required" for="directLending">Direct Lending or Loan Arrangement</label>
+                    <div class="field-meta">FieldPath: campaignUseCase.directLending | SELECT</div>
+                    <div class="hint">If your company is involved in direct lending or loans, select Yes.</div>
+                    <select id="directLending" required>
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="embeddedLink">Embedded Link</label>
+                    <div class="field-meta">FieldPath: campaignUseCase.embeddedLink | SELECT</div>
+                    <div class="hint">Public URL shorteners (bitly, tinyurl) are not accepted.</div>
+                    <select id="embeddedLink" required onchange="toggleEmbeddedLinkSample()">
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                    </select>
+                </div>
+
+                <div id="embeddedLinkSampleSection" style="display:none">
+                    <div class="field">
+                        <label for="embeddedLinkSample">Embedded Link Sample</label>
+                        <div class="field-meta">FieldPath: campaignUseCase.embeddedLinkSample | TEXT | max 255</div>
+                        <input type="url" id="embeddedLinkSample" maxlength="255" placeholder="https://www.example.com/verify">
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="embeddedPhone">Embedded Phone Number</label>
+                    <div class="field-meta">FieldPath: campaignUseCase.embeddedPhone | SELECT</div>
+                    <div class="hint">Excluding the required HELP contact phone number.</div>
+                    <select id="embeddedPhone" required>
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="ageGated">Age-Gated Content</label>
+                    <div class="field-meta">FieldPath: campaignUseCase.ageGated | SELECT</div>
+                    <select id="ageGated" required>
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                    </select>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Message Samples →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Message Samples -->
+        <div class="step-panel" id="step-5">
+            <div class="card">
+                <h2>Campaign Registration — Message Samples</h2>
+                <p class="subtitle">Section: messageSamples — At least one sample is required. Use realistic messages with variable fields in brackets like [OTP Code].</p>
+
+                <div class="field">
+                    <label class="required" for="messageSample1">Message Sample 1</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample1 | TEXT | 20–1024 chars</div>
+                    <div class="hint">Should identify who is sending the message (brand name). Must reflect actual messages you plan to send.</div>
+                    <textarea id="messageSample1" minlength="20" maxlength="1024" required oninput="updateCharCount(this, 'sample1Count')" placeholder="Your One-Time Password for Example Corp is [OTP Code]. Please enter this on the verification screen to complete your account setup."></textarea>
+                    <div class="char-count" id="sample1Count">0 / 1024</div>
+                </div>
+
+                <div class="field">
+                    <label for="messageSample2">Message Sample 2 (optional)</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample2 | TEXT | 20–1024 chars</div>
+                    <textarea id="messageSample2" minlength="20" maxlength="1024" oninput="updateCharCount(this, 'sample2Count')" placeholder=""></textarea>
+                    <div class="char-count" id="sample2Count">0 / 1024</div>
+                </div>
+
+                <div class="field">
+                    <label for="messageSample3">Message Sample 3 (optional)</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample3 | TEXT | 20–1024 chars</div>
+                    <textarea id="messageSample3" minlength="20" maxlength="1024" oninput="updateCharCount(this, 'sample3Count')" placeholder=""></textarea>
+                    <div class="char-count" id="sample3Count">0 / 1024</div>
+                </div>
+
+                <div class="field">
+                    <label for="messageSample4">Message Sample 4 (optional)</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample4 | TEXT | 20–1024 chars</div>
+                    <textarea id="messageSample4" minlength="20" maxlength="1024" oninput="updateCharCount(this, 'sample4Count')" placeholder=""></textarea>
+                    <div class="char-count" id="sample4Count">0 / 1024</div>
+                </div>
+
+                <div class="field">
+                    <label for="messageSample5">Message Sample 5 (optional)</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample5 | TEXT | 20–1024 chars</div>
+                    <textarea id="messageSample5" minlength="20" maxlength="1024" oninput="updateCharCount(this, 'sample5Count')" placeholder=""></textarea>
+                    <div class="char-count" id="sample5Count">0 / 1024</div>
+                </div>
+
+                <div class="section-title">Phone Number Configuration</div>
+
+                <div class="field">
+                    <label class="required" for="phoneMessageType">Phone Number Message Type</label>
+                    <div class="hint">Used when requesting the 10DLC phone number.</div>
+                    <select id="phoneMessageType" required>
+                        <option value="TRANSACTIONAL">Transactional</option>
+                        <option value="PROMOTIONAL">Promotional</option>
+                    </select>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-generate" onclick="nextStep()">Generate CLI Commands →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 6: Generated CLI Output -->
+        <div class="step-panel" id="step-6">
+            <div class="card">
+                <h2>Generated CLI Commands</h2>
+                <p class="subtitle">Copy and run these commands in order. Replace placeholder registration IDs with actual values from each command's response.</p>
+
+                <div class="info-box">
+                    <strong>Important:</strong> After each <code>create-registration</code> command, save the <code>RegistrationId</code> from the response and substitute it into subsequent commands. After <code>request-phone-number</code>, save the <code>PhoneNumberId</code>.
+                </div>
+
+                <div id="cliOutput"></div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back to Edit</button>
+                    <button class="btn btn-primary" onclick="copyAllCli()">Copy All Commands</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const totalSteps = 7;
+
+        function goToStep(step) {
+            if (step < 0 || step >= totalSteps) return;
+            document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.step-indicator').forEach(s => {
+                s.classList.remove('active');
+                if (parseInt(s.dataset.step) < step) s.classList.add('completed');
+                else s.classList.remove('completed');
+            });
+            document.getElementById('step-' + step).classList.add('active');
+            document.querySelector(`.step-indicator[data-step="${step}"]`).classList.add('active');
+            currentStep = step;
+            if (step === 6) generateCli();
+            window.scrollTo(0, 0);
+        }
+
+        function nextStep() { goToStep(currentStep + 1); }
+        function prevStep() { goToStep(currentStep - 1); }
+
+        function togglePublicProfitFields() {
+            const show = document.getElementById('legalType').value === 'PUBLIC_PROFIT';
+            document.getElementById('publicProfitFields').style.display = show ? 'block' : 'none';
+        }
+
+        function toggleSubUseCases() {
+            const val = document.getElementById('useCase').value;
+            document.getElementById('subUseCaseSection').style.display =
+                (val === 'MIXED' || val === 'LOW_VOLUME') ? 'block' : 'none';
+        }
+
+        function toggleEmbeddedLinkSample() {
+            document.getElementById('embeddedLinkSampleSection').style.display =
+                document.getElementById('embeddedLink').value === 'Yes' ? 'block' : 'none';
+        }
+
+        function updateCharCount(el, countId) {
+            document.getElementById(countId).textContent = el.value.length + ' / ' + el.maxLength;
+        }
+
+        function esc(val) {
+            if (!val) return '';
+            return val.replace(/'/g, "'\\''");
+        }
+
+        function generateCli() {
+            const v = id => (document.getElementById(id)?.value || '').trim();
+            const lines = [];
+
+            function comment(text) { lines.push(`\n# ${'='.repeat(60)}\n# ${text}\n# ${'='.repeat(60)}`); }
+            function cmd(text) { lines.push(text); }
+            function note(text) { lines.push(`\n# NOTE: ${text}`); }
+
+            // ---- BRAND REGISTRATION ----
+            comment('STEP 1: Create Brand Registration');
+            cmd(`aws pinpoint-sms-voice-v2 create-registration \\
+    --registration-type US_TEN_DLC_BRAND_REGISTRATION \\
+    --tags "Key=Name,Value=${esc(v('companyName'))}"
+`);
+            note('Save the RegistrationId from the response. Replace BRAND_REG_ID below.');
+
+            comment('STEP 2: Populate Brand Registration Fields');
+
+            // companyInfo fields
+            cmd(`# companyInfo.companyName
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.companyName \\
+    --text-value '${esc(v('companyName'))}'`);
+
+            cmd(`\n# companyInfo.taxIdIssuingCountry
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.taxIdIssuingCountry \\
+    --text-value '${esc(v('taxIdIssuingCountry').toUpperCase())}'`);
+
+            cmd(`\n# companyInfo.taxId
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.taxId \\
+    --text-value '${esc(v('taxId'))}'`);
+
+            cmd(`\n# companyInfo.legalType
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.legalType \\
+    --text-choices '${esc(v('legalType'))}'`);
+
+            if (v('legalType') === 'PUBLIC_PROFIT') {
+                if (v('stockSymbol')) {
+                    cmd(`\n# companyInfo.stockSymbol
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.stockSymbol \\
+    --text-value '${esc(v('stockSymbol'))}'`);
+                }
+                if (v('stockExchange')) {
+                    cmd(`\n# companyInfo.stockExchange
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.stockExchange \\
+    --text-choices '${esc(v('stockExchange'))}'`);
+                }
+                if (v('businessContactEmail')) {
+                    cmd(`\n# companyInfo.businessContactEmail
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.businessContactEmail \\
+    --text-value '${esc(v('businessContactEmail'))}'`);
+                }
+            }
+
+            cmd(`\n# companyInfo.address
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.address \\
+    --text-value '${esc(v('address'))}'`);
+
+            cmd(`\n# companyInfo.city
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.city \\
+    --text-value '${esc(v('city'))}'`);
+
+            cmd(`\n# companyInfo.state
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.state \\
+    --text-value '${esc(v('state'))}'`);
+
+            cmd(`\n# companyInfo.zipCode
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.zipCode \\
+    --text-value '${esc(v('zipCode'))}'`);
+
+            cmd(`\n# companyInfo.isoCountryCode
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path companyInfo.isoCountryCode \\
+    --text-value '${esc(v('isoCountryCode').toUpperCase())}'`);
+
+            // contactInfo fields
+            cmd(`\n# contactInfo.dbaName
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path contactInfo.dbaName \\
+    --text-value '${esc(v('dbaName'))}'`);
+
+            cmd(`\n# contactInfo.vertical
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path contactInfo.vertical \\
+    --text-choices '${esc(v('contactVertical'))}'`);
+
+            cmd(`\n# contactInfo.website
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path contactInfo.website \\
+    --text-value '${esc(v('website'))}'`);
+
+            cmd(`\n# contactInfo.supportEmail
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path contactInfo.supportEmail \\
+    --text-value '${esc(v('supportEmail'))}'`);
+
+            cmd(`\n# contactInfo.supportPhoneNumber
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id BRAND_REG_ID \\
+    --field-path contactInfo.supportPhoneNumber \\
+    --text-value '${esc(v('supportPhoneNumber'))}'`);
+
+            comment('STEP 3: Submit Brand Registration');
+            cmd(`aws pinpoint-sms-voice-v2 submit-registration-version \\
+    --registration-id BRAND_REG_ID`);
+            note('Wait for brand to reach COMPLETED status before proceeding.');
+            cmd(`\n# Check status:
+aws pinpoint-sms-voice-v2 describe-registrations \\
+    --registration-ids BRAND_REG_ID`);
+
+            // ---- VETTING ----
+            if (document.getElementById('enableVetting').checked) {
+                comment('STEP 4: Brand Vetting (Optional)');
+                note('$40 non-refundable fee. No field definitions — just create, associate, and submit.');
+                cmd(`aws pinpoint-sms-voice-v2 create-registration \\
+    --registration-type US_TEN_DLC_BRAND_VETTING \\
+    --tags "Key=Name,Value=${esc(v('companyName'))}-Vetting"`);
+                note('Save the RegistrationId. Replace VETTING_REG_ID below.');
+                cmd(`\n# Associate the approved brand with the vetting registration (ASSOCIATE_BEFORE_SUBMIT)
+aws pinpoint-sms-voice-v2 create-registration-association \\
+    --registration-id VETTING_REG_ID \\
+    --resource-id BRAND_REG_ID`);
+                cmd(`\n# Submit vetting
+aws pinpoint-sms-voice-v2 submit-registration-version \\
+    --registration-id VETTING_REG_ID`);
+                cmd(`\n# Check vetting status:
+aws pinpoint-sms-voice-v2 describe-registrations \\
+    --registration-ids VETTING_REG_ID`);
+            }
+
+            // ---- CAMPAIGN ----
+            comment('STEP 5: Create Campaign Registration');
+            cmd(`aws pinpoint-sms-voice-v2 create-registration \\
+    --registration-type US_TEN_DLC_CAMPAIGN_REGISTRATION \\
+    --tags "Key=Name,Value=${esc(v('companyName'))}-Campaign"`);
+            note('Save the RegistrationId. Replace CAMPAIGN_REG_ID below.');
+
+            cmd(`\n# Associate the approved brand with the campaign (ASSOCIATE_BEFORE_SUBMIT)
+aws pinpoint-sms-voice-v2 create-registration-association \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --resource-id BRAND_REG_ID`);
+
+            comment('STEP 6: Populate Campaign Registration Fields');
+
+            // campaignInfo
+            cmd(`# campaignInfo.campaignName
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.campaignName \\
+    --text-value '${esc(v('campaignName'))}'`);
+
+            cmd(`\n# campaignInfo.vertical
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.vertical \\
+    --text-choices '${esc(v('campaignVertical'))}'`);
+
+            if (v('termsAndConditionsLink')) {
+                cmd(`\n# campaignInfo.termsAndConditionsLink
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.termsAndConditionsLink \\
+    --text-value '${esc(v('termsAndConditionsLink'))}'`);
+            }
+
+            if (v('privacyPolicyLink')) {
+                cmd(`\n# campaignInfo.privacyPolicyLink
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.privacyPolicyLink \\
+    --text-value '${esc(v('privacyPolicyLink'))}'`);
+            }
+
+            cmd(`\n# campaignInfo.optInWorkflow
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.optInWorkflow \\
+    --text-value '${esc(v('optInWorkflow'))}'`);
+
+            if (v('optInScreenshotS3')) {
+                cmd(`\n# Create opt-in screenshot attachment
+aws pinpoint-sms-voice-v2 create-registration-attachment \\
+    --attachment-url ${esc(v('optInScreenshotS3'))}`);
+                note('Save the RegistrationAttachmentId. Replace ATTACHMENT_ID below.');
+                cmd(`\n# campaignInfo.optInScreenshot
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.optInScreenshot \\
+    --registration-attachment-id ATTACHMENT_ID`);
+            }
+
+            if (v('optInKeyword')) {
+                cmd(`\n# campaignInfo.optInKeyword
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.optInKeyword \\
+    --text-value '${esc(v('optInKeyword'))}'`);
+            }
+
+            cmd(`\n# campaignInfo.optInMessage
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.optInMessage \\
+    --text-value '${esc(v('optInMessage'))}'`);
+
+            cmd(`\n# campaignInfo.helpMessage
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.helpMessage \\
+    --text-value '${esc(v('helpMessage'))}'`);
+
+            cmd(`\n# campaignInfo.stopMessage
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignInfo.stopMessage \\
+    --text-value '${esc(v('stopMessage'))}'`);
+
+            // campaignCapabilities
+            cmd(`\n# campaignCapabilities.numberCapabilities
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignCapabilities.numberCapabilities \\
+    --text-choices '${esc(v('numberCapabilities'))}'`);
+
+            if (v('messageType')) {
+                cmd(`\n# campaignCapabilities.messageType
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignCapabilities.messageType \\
+    --text-choices '${esc(v('messageType'))}'`);
+            }
+
+            // campaignUseCase
+            cmd(`\n# campaignUseCase.useCase
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.useCase \\
+    --text-choices '${esc(v('useCase'))}'`);
+
+            const useCaseVal = v('useCase');
+            if (useCaseVal === 'MIXED' || useCaseVal === 'LOW_VOLUME') {
+                const sel = document.getElementById('subUseCases');
+                const selected = Array.from(sel.selectedOptions).map(o => o.value);
+                if (selected.length > 0) {
+                    cmd(`\n# campaignUseCase.subUseCases
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.subUseCases \\
+    --text-choices ${selected.map(s => `'${s}'`).join(' ')}`);
+                }
+            }
+
+            cmd(`\n# campaignUseCase.subscriberOptIn
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.subscriberOptIn \\
+    --text-choices 'Yes'`);
+
+            cmd(`\n# campaignUseCase.subscriberOptOut
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.subscriberOptOut \\
+    --text-choices 'Yes'`);
+
+            cmd(`\n# campaignUseCase.subscriberHelp
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.subscriberHelp \\
+    --text-choices 'Yes'`);
+
+            cmd(`\n# campaignUseCase.directLending
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.directLending \\
+    --text-choices '${esc(v('directLending'))}'`);
+
+            cmd(`\n# campaignUseCase.embeddedLink
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.embeddedLink \\
+    --text-choices '${esc(v('embeddedLink'))}'`);
+
+            if (v('embeddedLink') === 'Yes' && v('embeddedLinkSample')) {
+                cmd(`\n# campaignUseCase.embeddedLinkSample
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.embeddedLinkSample \\
+    --text-value '${esc(v('embeddedLinkSample'))}'`);
+            }
+
+            cmd(`\n# campaignUseCase.embeddedPhone
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.embeddedPhone \\
+    --text-choices '${esc(v('embeddedPhone'))}'`);
+
+            cmd(`\n# campaignUseCase.ageGated
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path campaignUseCase.ageGated \\
+    --text-choices '${esc(v('ageGated'))}'`);
+
+            // messageSamples
+            for (let i = 1; i <= 5; i++) {
+                const sample = v('messageSample' + i);
+                if (sample) {
+                    cmd(`\n# messageSamples.messageSample${i}
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --field-path messageSamples.messageSample${i} \\
+    --text-value '${esc(sample)}'`);
+                }
+            }
+
+            comment('STEP 7: Submit Campaign Registration');
+            cmd(`aws pinpoint-sms-voice-v2 submit-registration-version \\
+    --registration-id CAMPAIGN_REG_ID`);
+            note('Campaign review takes 4-6 weeks. Wait for COMPLETED status.');
+            cmd(`\n# Check status:
+aws pinpoint-sms-voice-v2 describe-registrations \\
+    --registration-ids CAMPAIGN_REG_ID`);
+
+            // ---- PHONE NUMBER ----
+            const numCaps = v('numberCapabilities');
+            let capsArg = 'SMS';
+            if (numCaps.includes('MMS') && numCaps.includes('VOICE')) capsArg = 'SMS MMS VOICE';
+            else if (numCaps.includes('MMS')) capsArg = 'SMS MMS';
+            else if (numCaps.includes('VOICE')) capsArg = 'SMS VOICE';
+
+            comment('STEP 8: Request a 10DLC Phone Number');
+            note('Only run after campaign is approved.');
+            cmd(`aws pinpoint-sms-voice-v2 request-phone-number \\
+    --iso-country-code US \\
+    --message-type ${v('phoneMessageType')} \\
+    --number-capabilities ${capsArg} \\
+    --number-type TEN_DLC`);
+            note('Save the PhoneNumberId. Replace PHONE_NUMBER_ID below.');
+            note('You are charged the monthly lease fee immediately.');
+
+            comment('STEP 9: Associate Phone Number with Campaign');
+            note('ASSOCIATE_AFTER_COMPLETE — run after campaign is approved.');
+            cmd(`aws pinpoint-sms-voice-v2 create-registration-association \\
+    --registration-id CAMPAIGN_REG_ID \\
+    --resource-id PHONE_NUMBER_ID`);
+            note('Carrier review after association takes 4-6 weeks.');
+
+            comment('STEP 10: Send a Test Message (after full approval)');
+            cmd(`aws pinpoint-sms-voice-v2 send-text-message \\
+    --destination-phone-number "+15551234567" \\
+    --origination-identity "PHONE_NUMBER_ID_OR_E164" \\
+    --message-body '${esc(v('messageSample1') || 'Your verification code is 123456.')}' \\
+    --message-type ${v('phoneMessageType')}`);
+
+            // Render
+            const container = document.getElementById('cliOutput');
+            container.innerHTML = '';
+            const block = document.createElement('div');
+            block.className = 'cli-block';
+            block.id = 'allCliCommands';
+
+            let html = '';
+            for (const line of lines) {
+                if (line.startsWith('\n# =') || line.startsWith('# =')) {
+                    html += `<span class="comment">${escHtml(line)}</span>\n`;
+                } else if (line.startsWith('\n# ') || line.startsWith('# ')) {
+                    html += `<span class="comment">${escHtml(line)}</span>\n`;
+                } else {
+                    html += escHtml(line) + '\n';
+                }
+            }
+            block.innerHTML = `<button class="copy-btn" onclick="copyAllCli()">Copy All</button>` + html;
+            container.appendChild(block);
+        }
+
+        function escHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function copyAllCli() {
+            const el = document.getElementById('allCliCommands');
+            const text = el.innerText.replace('Copy All', '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = el.querySelector('.copy-btn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy All', 2000);
+            });
+        }
+    </script>
+</body>
+</html>

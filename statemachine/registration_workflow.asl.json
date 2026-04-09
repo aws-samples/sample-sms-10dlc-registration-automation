@@ -1,0 +1,261 @@
+{
+  "Comment": "10DLC Registration Automation Workflow",
+  "StartAt": "CreateBrandRegistration",
+  "States": {
+    "CreateBrandRegistration": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${BrandRegistrationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "create_and_submit"
+        }
+      },
+      "ResultPath": "$.brandResult",
+      "Next": "WaitForBrandApproval"
+    },
+    "WaitForBrandApproval": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${BrandRegistrationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "store_task_token",
+          "taskToken.$": "$$.Task.Token",
+          "waitingFor": "brand"
+        }
+      },
+      "ResultPath": "$.brandApprovalResult",
+      "TimeoutSeconds": 2592000,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "BrandRejected",
+          "ResultPath": "$.error"
+        },
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "Next": "RegistrationTimedOut",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "ShouldVetBrand"
+    },
+    "BrandRejected": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "BRAND_REJECTED",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.notificationResult",
+      "Next": "WaitForHumanIntervention_Brand"
+    },
+    "WaitForHumanIntervention_Brand": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${BrandRegistrationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "store_task_token",
+          "taskToken.$": "$$.Task.Token",
+          "waitingFor": "brand_human_intervention"
+        }
+      },
+      "ResultPath": "$.humanResult",
+      "TimeoutSeconds": 2592000,
+      "Next": "ShouldVetBrand"
+    },
+    "ShouldVetBrand": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.enableVetting",
+          "BooleanEquals": true,
+          "Next": "CreateBrandVetting"
+        }
+      ],
+      "Default": "CreateCampaignRegistration"
+    },
+    "CreateBrandVetting": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${VettingFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "create_and_submit"
+        }
+      },
+      "ResultPath": "$.vettingResult",
+      "Next": "WaitForVettingApproval"
+    },
+    "WaitForVettingApproval": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${VettingFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "store_task_token",
+          "taskToken.$": "$$.Task.Token",
+          "waitingFor": "vetting"
+        }
+      },
+      "ResultPath": "$.vettingApprovalResult",
+      "TimeoutSeconds": 2592000,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "VettingFailed"
+        },
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "Next": "RegistrationTimedOut",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "CreateCampaignRegistration"
+    },
+    "VettingFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "VETTING_FAILED"
+        }
+      },
+      "ResultPath": "$.notificationResult",
+      "Next": "CreateCampaignRegistration",
+      "Comment": "Vetting failure is non-blocking — proceed to campaign with lower throughput"
+    },
+    "CreateCampaignRegistration": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${CampaignRegistrationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "create_and_submit"
+        }
+      },
+      "ResultPath": "$.campaignResult",
+      "Next": "WaitForCampaignApproval"
+    },
+    "WaitForCampaignApproval": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${CampaignRegistrationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "store_task_token",
+          "taskToken.$": "$$.Task.Token",
+          "waitingFor": "campaign"
+        }
+      },
+      "ResultPath": "$.campaignApprovalResult",
+      "TimeoutSeconds": 5184000,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "CampaignRejected",
+          "ResultPath": "$.error"
+        },
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "Next": "RegistrationTimedOut",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "RequestPhoneNumber"
+    },
+    "CampaignRejected": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "CAMPAIGN_REJECTED",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.notificationResult",
+      "Next": "WaitForHumanIntervention_Campaign"
+    },
+    "WaitForHumanIntervention_Campaign": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${CampaignRegistrationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "store_task_token",
+          "taskToken.$": "$$.Task.Token",
+          "waitingFor": "campaign_human_intervention"
+        }
+      },
+      "ResultPath": "$.humanResult",
+      "TimeoutSeconds": 2592000,
+      "Next": "RequestPhoneNumber"
+    },
+    "RequestPhoneNumber": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${PhoneNumberFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "request_and_associate"
+        }
+      },
+      "ResultPath": "$.phoneResult",
+      "Next": "NotifyComplete"
+    },
+    "NotifyComplete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "REGISTRATION_COMPLETE"
+        }
+      },
+      "ResultPath": "$.notificationResult",
+      "Next": "RegistrationComplete"
+    },
+    "RegistrationComplete": {
+      "Type": "Succeed"
+    },
+    "RegistrationTimedOut": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "REGISTRATION_TIMED_OUT",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.notificationResult",
+      "Next": "RegistrationFailed"
+    },
+    "RegistrationFailed": {
+      "Type": "Fail",
+      "Error": "RegistrationTimedOut",
+      "Cause": "Registration did not complete within the timeout period"
+    }
+  }
+}
