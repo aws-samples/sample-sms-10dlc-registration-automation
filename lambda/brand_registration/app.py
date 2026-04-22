@@ -1,5 +1,7 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 """
-Brand Registration Lambda — creates the brand registration,
+Brand Registration Lambda -- creates the brand registration,
 populates all fields, submits, and stores task tokens for callbacks.
 """
 import json
@@ -7,11 +9,13 @@ import os
 
 import boto3
 
+from dry_run import is_dry_run, fake_create_registration
+
 dynamodb = boto3.resource('dynamodb')
 sms = boto3.client('pinpoint-sms-voice-v2')
 table = dynamodb.Table(os.environ['REGISTRATIONS_TABLE'])
 
-# Brand field mappings: form field name → (FieldPath, value_type)
+# Brand field mappings: form field name -> (FieldPath, value_type)
 # value_type: 'text' uses --text-value, 'select' uses --text-choices
 COMPANY_INFO_FIELDS = {
     'companyName':          ('companyInfo.companyName', 'text'),
@@ -65,21 +69,26 @@ def store_task_token(request_id, payload):
             ':now': _now(),
         }
     )
-    # This Lambda is invoked with .waitForTaskToken — it does NOT return.
+    # This Lambda is invoked with .waitForTaskToken -- it does NOT return.
     # Step Functions will pause until SendTaskSuccess/Failure is called.
 
 
 def create_and_submit(request_id):
     """Create brand registration, populate fields, and submit."""
+    dry = is_dry_run()
+
     # Fetch form data from DynamoDB
     item = table.get_item(Key={'requestId': request_id})['Item']
     brand_fields = item.get('brandFields', {})
 
     # 1. Create the registration
-    resp = sms.create_registration(
-        RegistrationType='US_TEN_DLC_BRAND_REGISTRATION',
-        Tags=[{'Key': 'Name', 'Value': brand_fields.get('companyName', 'Brand')}]
-    )
+    if not dry:
+        resp = sms.create_registration(
+            RegistrationType='US_TEN_DLC_BRAND_REGISTRATION',
+            Tags=[{'Key': 'Name', 'Value': brand_fields.get('companyName', 'Brand')}]
+        )
+    else:
+        resp = fake_create_registration('US_TEN_DLC_BRAND_REGISTRATION')
     brand_reg_id = resp['RegistrationId']
 
     # Save the brand reg ID to DynamoDB
@@ -94,20 +103,21 @@ def create_and_submit(request_id):
         }
     )
 
-    # 2. Populate companyInfo fields
-    for form_key, (field_path, val_type) in COMPANY_INFO_FIELDS.items():
-        value = brand_fields.get(form_key)
-        if value:
-            _put_field(brand_reg_id, field_path, value, val_type)
+    if not dry:
+        # 2. Populate companyInfo fields
+        for form_key, (field_path, val_type) in COMPANY_INFO_FIELDS.items():
+            value = brand_fields.get(form_key)
+            if value:
+                _put_field(brand_reg_id, field_path, value, val_type)
 
-    # 3. Populate contactInfo fields
-    for form_key, (field_path, val_type) in CONTACT_INFO_FIELDS.items():
-        value = brand_fields.get(form_key)
-        if value:
-            _put_field(brand_reg_id, field_path, value, val_type)
+        # 3. Populate contactInfo fields
+        for form_key, (field_path, val_type) in CONTACT_INFO_FIELDS.items():
+            value = brand_fields.get(form_key)
+            if value:
+                _put_field(brand_reg_id, field_path, value, val_type)
 
-    # 4. Submit
-    sms.submit_registration_version(RegistrationId=brand_reg_id)
+        # 4. Submit
+        sms.submit_registration_version(RegistrationId=brand_reg_id)
 
     table.update_item(
         Key={'requestId': request_id},

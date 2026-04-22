@@ -1,0 +1,6 @@
+{
+  "body": "{\"contentType\":\"image/png\",\"fieldName\":\"optInScreenshot\",\"requestId\":\"test-request-001\"}",
+  "requestContext": {
+    "http": { "method": "POST", "path": "/api/upload-url" }
+  }
+}

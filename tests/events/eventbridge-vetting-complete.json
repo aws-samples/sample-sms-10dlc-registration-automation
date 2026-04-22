@@ -1,0 +1,19 @@
+{
+  "version": "0",
+  "id": "12345678-1234-1234-1234-123456789016",
+  "detail-type": "Registration Status Change",
+  "source": "aws.sms-voice",
+  "account": "123456789012",
+  "time": "2026-04-17T12:00:00Z",
+  "region": "us-east-1",
+  "detail": {
+    "registrationDetails": {
+      "registrationId": "reg-vetting-test-001",
+      "registrationType": "US_TEN_DLC_BRAND_VETTING",
+      "currentStatus": "COMPLETE",
+      "previousStatus": "REVIEWING",
+      "registrationVersionNumber": 1
+    },
+    "eventTimestamp": "2026-04-17T12:00:00Z"
+  }
+}

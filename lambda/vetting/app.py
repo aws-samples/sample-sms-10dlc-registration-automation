@@ -1,11 +1,15 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 """
-Vetting Lambda — creates brand vetting registration,
+Vetting Lambda -- creates brand vetting registration,
 associates the approved brand, and submits.
 """
 import json
 import os
 
 import boto3
+
+from dry_run import is_dry_run, fake_create_registration
 
 dynamodb = boto3.resource('dynamodb')
 sms = boto3.client('pinpoint-sms-voice-v2')
@@ -41,24 +45,30 @@ def store_task_token(request_id, payload):
 
 def create_and_submit(request_id):
     """Create vetting, associate brand, submit."""
+    dry = is_dry_run()
+
     item = table.get_item(Key={'requestId': request_id})['Item']
     brand_reg_id = item['brandRegId']
 
     # 1. Create vetting registration
-    resp = sms.create_registration(
-        RegistrationType='US_TEN_DLC_BRAND_VETTING',
-        Tags=[{'Key': 'Name', 'Value': f'{request_id}-Vetting'}]
-    )
+    if not dry:
+        resp = sms.create_registration(
+            RegistrationType='US_TEN_DLC_BRAND_VETTING',
+            Tags=[{'Key': 'Name', 'Value': f'{request_id}-Vetting'}]
+        )
+    else:
+        resp = fake_create_registration('US_TEN_DLC_BRAND_VETTING')
     vetting_reg_id = resp['RegistrationId']
 
-    # 2. Associate the approved brand (ASSOCIATE_BEFORE_SUBMIT)
-    sms.create_registration_association(
-        RegistrationId=vetting_reg_id,
-        ResourceId=brand_reg_id,
-    )
+    if not dry:
+        # 2. Associate the approved brand (ASSOCIATE_BEFORE_SUBMIT)
+        sms.create_registration_association(
+            RegistrationId=vetting_reg_id,
+            ResourceId=brand_reg_id,
+        )
 
-    # 3. Submit
-    sms.submit_registration_version(RegistrationId=vetting_reg_id)
+        # 3. Submit
+        sms.submit_registration_version(RegistrationId=vetting_reg_id)
 
     # Update DynamoDB
     table.update_item(

@@ -38,6 +38,12 @@ secrets.json
 # Temporary tests
 deletable-tests/
 
+# Security scans (local only)
+security-scans/
+
+# Drawio backup files
+*.bkp
+
 # Node (if applicable)
 node_modules/
 

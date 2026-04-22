@@ -1,5 +1,7 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 """
-Presigned URL Lambda — generates time-limited S3 PUT URLs
+Presigned URL Lambda -- generates time-limited S3 PUT URLs
 for direct browser-to-S3 file uploads.
 """
 import json

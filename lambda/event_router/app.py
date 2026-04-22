@@ -1,5 +1,7 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 """
-Event Router Lambda — receives EventBridge Registration Status Change events,
+Event Router Lambda -- receives EventBridge Registration Status Change events,
 looks up the corresponding task token in DynamoDB, and calls
 SendTaskSuccess or SendTaskFailure to resume the Step Functions execution.
 """

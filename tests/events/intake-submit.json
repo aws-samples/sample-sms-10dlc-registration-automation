@@ -1,0 +1,6 @@
+{
+  "body": "{\"enableVetting\":false,\"brandFields\":{\"companyName\":\"Test Company LLC\",\"taxIdIssuingCountry\":\"US\",\"taxId\":\"12-3456789\",\"legalType\":\"PRIVATE_PROFIT\",\"businessContactEmail\":\"test@example.com\",\"address\":\"123 Test Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zipCode\":\"98101\",\"isoCountryCode\":\"US\",\"dbaName\":\"TestCo\",\"contactVertical\":\"TECHNOLOGY\",\"website\":\"https://example.com\",\"supportEmail\":\"support@example.com\",\"supportPhoneNumber\":\"+12065551234\"},\"campaignFields\":{\"campaignName\":\"Test Campaign\",\"campaignVertical\":\"TECHNOLOGY\",\"messageType\":\"TRANSACTIONAL\",\"useCase\":\"TWO_FACTOR_AUTHENTICATION\",\"messageSample1\":\"Your code is {code}.\"},\"attachments\":{},\"phoneConfig\":{\"messageType\":\"TRANSACTIONAL\",\"capabilities\":[\"SMS\"]}}",
+  "requestContext": {
+    "http": { "method": "POST", "path": "/api/submit" }
+  }
+}

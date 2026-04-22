@@ -1,5 +1,7 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 """
-Phone Number Lambda — requests a 10DLC phone number
+Phone Number Lambda -- requests a 10DLC phone number
 and associates it with the approved campaign.
 """
 import json
@@ -7,12 +9,16 @@ import os
 
 import boto3
 
+from dry_run import is_dry_run, fake_phone_number
+
 dynamodb = boto3.resource('dynamodb')
 sms = boto3.client('pinpoint-sms-voice-v2')
 table = dynamodb.Table(os.environ['REGISTRATIONS_TABLE'])
 
 
 def handler(event, context):
+    dry = is_dry_run()
+
     payload = event.get('Payload', event)
     request_id = payload['requestId']
 
@@ -24,20 +30,24 @@ def handler(event, context):
     capabilities = phone_config.get('capabilities', ['SMS'])
 
     # 1. Request a 10DLC phone number
-    resp = sms.request_phone_number(
-        IsoCountryCode='US',
-        MessageType=message_type,
-        NumberCapabilities=capabilities,
-        NumberType='TEN_DLC',
-    )
+    if not dry:
+        resp = sms.request_phone_number(
+            IsoCountryCode='US',
+            MessageType=message_type,
+            NumberCapabilities=capabilities,
+            NumberType='TEN_DLC',
+        )
+    else:
+        resp = fake_phone_number()
     phone_number_id = resp['PhoneNumberId']
     phone_number = resp.get('PhoneNumber', '')
 
     # 2. Associate with the campaign (ASSOCIATE_AFTER_COMPLETE)
-    sms.create_registration_association(
-        RegistrationId=campaign_reg_id,
-        ResourceId=phone_number_id,
-    )
+    if not dry:
+        sms.create_registration_association(
+            RegistrationId=campaign_reg_id,
+            ResourceId=phone_number_id,
+        )
 
     # Update DynamoDB
     table.update_item(

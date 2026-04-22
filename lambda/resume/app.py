@@ -1,5 +1,7 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 """
-Resume Lambda — human-in-the-loop endpoint.
+Resume Lambda -- human-in-the-loop endpoint.
 After a rejection, the operator fixes the registration in the console
 and calls this endpoint to resume the Step Functions workflow.
 """
@@ -35,7 +37,7 @@ def handler(event, context):
     # Find the human intervention token
     token_key = None
     task_token = None
-    for key in ['brand_human_intervention', 'campaign_human_intervention']:
+    for key in ['brand_human_intervention', 'vetting_human_intervention', 'campaign_human_intervention']:
         if key in task_tokens:
             token_key = key
             task_token = task_tokens[key]

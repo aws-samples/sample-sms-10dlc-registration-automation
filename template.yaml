@@ -1,8 +1,11 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  10DLC Registration Automation — Step Functions + EventBridge pipeline
+  10DLC Registration Automation - AWS Step Functions + Amazon EventBridge pipeline
   for automated brand, vetting, campaign registration, and phone number provisioning.
+  COST WARNING: This stack creates billable resources. See README for details.
 
 Globals:
   Function:
@@ -13,8 +16,7 @@ Globals:
       Variables:
         REGISTRATIONS_TABLE: !Ref RegistrationsTable
         UPLOAD_BUCKET: !Ref UploadBucket
-        STATE_MACHINE_ARN: !Ref RegistrationStateMachine
-        NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
+        DRY_RUN: !Ref DryRun
 
 Parameters:
   NotificationEmail:
@@ -24,6 +26,14 @@ Parameters:
     Type: String
     Default: '*'
     Description: CORS allowed origin for the front end
+  DryRun:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: >
+      When true, Lambda functions skip real AWS End User Messaging SMS API calls
+      and return synthetic registration IDs. Use for end-to-end workflow testing
+      without creating real registrations.
 
 Resources:
 
@@ -35,6 +45,10 @@ Resources:
     Properties:
       TableName: !Sub '${AWS::StackName}-registrations'
       BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: requestId
           AttributeType: S
@@ -60,7 +74,7 @@ Resources:
             ProjectionType: ALL
 
   # ============================================================
-  # S3 — File upload staging bucket
+  # S3 - File upload staging bucket
   # ============================================================
   UploadBucket:
     Type: AWS::S3::Bucket
@@ -75,11 +89,20 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref UploadAccessLogsBucket
+        LogFilePrefix: upload-bucket-logs/
       LifecycleConfiguration:
         Rules:
           - Id: AutoDeleteUploads
             Status: Enabled
             ExpirationInDays: 90
+          - Id: CleanupOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
@@ -90,8 +113,63 @@ Resources:
               - Content-Type
             MaxAge: 3600
 
+  UploadBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref UploadBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt UploadBucket.Arn
+              - !Sub '${UploadBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  UploadAccessLogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-access-logs-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: AutoDeleteLogs
+            Status: Enabled
+            ExpirationInDays: 365
+
+  UploadAccessLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref UploadAccessLogsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt UploadAccessLogsBucket.Arn
+              - !Sub '${UploadAccessLogsBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
   # ============================================================
-  # SNS — Notifications
+  # SNS - Notifications
   # ============================================================
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -131,6 +209,9 @@ Resources:
     Properties:
       CodeUri: lambda/intake/
       Handler: app.handler
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref RegistrationStateMachine
       Events:
         SubmitRegistration:
           Type: HttpApi
@@ -258,9 +339,20 @@ Resources:
     Properties:
       CodeUri: lambda/notification/
       Handler: app.handler
+      Environment:
+        Variables:
+          NOTIFICATION_TOPIC_ARN: !Ref NotificationTopic
       Policies:
         - SNSPublishMessagePolicy:
-            TopicArn: !Ref NotificationTopic
+            TopicName: !GetAtt NotificationTopic.TopicName
+        - DynamoDBReadPolicy:
+            TableName: !Ref RegistrationsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sms-voice:DescribeRegistrationVersions
+                - sms-voice:DescribeRegistrationFieldValues
+              Resource: '*'
 
   # Resume — human-in-the-loop endpoint to resume after manual fix
   ResumeFunction:

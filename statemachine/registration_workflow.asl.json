@@ -114,7 +114,8 @@
       "Catch": [
         {
           "ErrorEquals": ["States.TaskFailed"],
-          "Next": "VettingFailed"
+          "Next": "VettingFailed",
+          "ResultPath": "$.vettingError"
         },
         {
           "ErrorEquals": ["States.Timeout"],
@@ -131,12 +132,29 @@
         "FunctionName": "${NotificationFunctionArn}",
         "Payload": {
           "requestId.$": "$.requestId",
-          "type": "VETTING_FAILED"
+          "type": "VETTING_FAILED",
+          "error.$": "$.vettingError"
         }
       },
       "ResultPath": "$.notificationResult",
-      "Next": "CreateCampaignRegistration",
-      "Comment": "Vetting failure is non-blocking — proceed to campaign with lower throughput"
+      "Next": "WaitForHumanIntervention_Vetting",
+      "Comment": "Vetting failed - notify operator and wait for explicit decision to proceed"
+    },
+    "WaitForHumanIntervention_Vetting": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${VettingFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "action": "store_task_token",
+          "taskToken.$": "$$.Task.Token",
+          "waitingFor": "vetting_human_intervention"
+        }
+      },
+      "ResultPath": "$.humanResult",
+      "TimeoutSeconds": 2592000,
+      "Next": "CreateCampaignRegistration"
     },
     "CreateCampaignRegistration": {
       "Type": "Task",
@@ -229,7 +247,8 @@
         "FunctionName": "${NotificationFunctionArn}",
         "Payload": {
           "requestId.$": "$.requestId",
-          "type": "REGISTRATION_COMPLETE"
+          "type": "REGISTRATION_COMPLETE",
+          "phoneResult.$": "$.phoneResult"
         }
       },
       "ResultPath": "$.notificationResult",

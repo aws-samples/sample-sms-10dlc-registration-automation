@@ -1,0 +1,8 @@
+{
+  "pathParameters": {
+    "requestId": "test-request-001"
+  },
+  "requestContext": {
+    "http": { "method": "POST", "path": "/api/resume/test-request-001" }
+  }
+}

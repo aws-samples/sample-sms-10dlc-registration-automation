@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<!-- Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+     SPDX-License-Identifier: MIT-0 -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toll-Free Programmatic Registration Wizard</title>
+    <meta name="description" content="Step-by-step wizard for programmatic toll-free number registration using AWS End User Messaging SMS CLI commands.">
+    <style>
+        :root {
+            --aws-orange: #ff9900;
+            --aws-dark: #232f3e;
+            --aws-light: #f2f3f3;
+            --aws-blue: #0073bb;
+            --aws-green: #1b660f;
+            --aws-red: #d13212;
+            --border: #d5dbdb;
+            --text: #16191f;
+            --text-secondary: #545b64;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--aws-light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        header {
+            background: var(--aws-dark);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        header h1 { font-size: 18px; font-weight: 600; }
+        header .badge {
+            background: var(--aws-orange);
+            color: var(--aws-dark);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+        /* Stepper */
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        .stepper::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+        .step-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1;
+            cursor: pointer;
+            flex: 1;
+        }
+        .step-circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+            transition: all 0.2s;
+        }
+        .step-indicator.active .step-circle {
+            background: var(--aws-blue);
+            border-color: var(--aws-blue);
+            color: white;
+        }
+        .step-indicator.completed .step-circle {
+            background: var(--aws-green);
+            border-color: var(--aws-green);
+            color: white;
+        }
+        .step-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 80px;
+        }
+        .step-indicator.active .step-label { color: var(--aws-blue); font-weight: 600; }
+
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+            color: var(--aws-dark);
+        }
+        .card .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--aws-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 20px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Form elements */
+        .field { margin-bottom: 16px; }
+        .field label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .field .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .field .field-meta {
+            font-size: 11px;
+            color: #888;
+            font-family: monospace;
+            margin-bottom: 4px;
+        }
+        .field input[type="text"],
+        .field input[type="email"],
+        .field input[type="url"],
+        .field input[type="tel"],
+        .field select,
+        .field textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .field input:focus, .field select:focus, .field textarea:focus {
+            outline: none;
+            border-color: var(--aws-blue);
+            box-shadow: 0 0 0 2px rgba(0,115,187,0.15);
+        }
+        .field textarea { min-height: 80px; resize: vertical; }
+        .field .required::after {
+            content: ' *';
+            color: var(--aws-red);
+        }
+        .field input.invalid, .field select.invalid, .field textarea.invalid {
+            border-color: var(--aws-red);
+        }
+        .field .error-msg {
+            color: var(--aws-red);
+            font-size: 12px;
+            margin-top: 2px;
+            display: none;
+        }
+        .field .char-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: right;
+            margin-top: 2px;
+        }
+        .conditional-note {
+            background: #fef3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 24px;
+            gap: 12px;
+        }
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-primary { background: var(--aws-blue); color: white; }
+        .btn-primary:hover { background: #005ea2; }
+        .btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--aws-light); }
+        .btn-generate { background: var(--aws-orange); color: var(--aws-dark); }
+        .btn-generate:hover { background: #ec8b00; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Output */
+        .output-section { margin-top: 24px; }
+        .output-section h3 { margin-bottom: 8px; font-size: 16px; }
+        .cli-block {
+            background: var(--aws-dark);
+            color: #e8e8e8;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .cli-block .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .cli-block .copy-btn:hover { background: rgba(255,255,255,0.25); }
+        .cli-block .comment { color: #7dcea0; }
+        .step-panel { display: none; }
+        .step-panel.active { display: block; }
+
+        /* Info box */
+        .info-box {
+            background: #e8f4fd;
+            border-left: 4px solid var(--aws-blue);
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Toll-Free Programmatic Registration Wizard</h1>
+        <span class="badge">AWS End User Messaging SMS</span>
+    </header>
+
+    <div class="container">
+        <!-- Prerequisites -->
+        <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:16px;margin-bottom:16px">
+            <strong>⚠️ Prerequisites</strong>
+            <ul style="margin:8px 0 0 20px;font-size:14px">
+                <li><a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS CLI v2</a> installed and configured with credentials</li>
+                <li>IAM permissions for <code>sms-voice:CreateRegistration</code>, <code>sms-voice:PutRegistrationFieldValue</code>, <code>sms-voice:SubmitRegistrationVersion</code>, <code>sms-voice:RequestPhoneNumber</code>, and <code>sms-voice:TagResource</code></li>
+                <li>AWS End User Messaging SMS enabled in your target region</li>
+            </ul>
+        </div>
+        <!-- Cost Warning -->
+        <div style="background:#fce4ec;border:1px solid #d13212;border-radius:8px;padding:16px;margin-bottom:16px">
+            <strong>💰 Cost Warning</strong>
+            <p style="margin:8px 0 0;font-size:14px">Running the generated CLI commands creates billable AWS resources: toll-free number registration fee and monthly phone number lease. See <a href="https://aws.amazon.com/end-user-messaging/pricing/">AWS End User Messaging Pricing</a> for current rates. To remove resources after testing, see the Cleanup section at the bottom of this page.</p>
+        </div>
+
+        <div class="stepper" role="navigation" aria-label="Registration steps">
+            <div class="step-indicator active" data-step="0" onclick="goToStep(0)">
+                <div class="step-circle">1</div>
+                <div class="step-label">Company Info</div>
+            </div>
+            <div class="step-indicator" data-step="1" onclick="goToStep(1)">
+                <div class="step-circle">2</div>
+                <div class="step-label">Contact Info</div>
+            </div>
+            <div class="step-indicator" data-step="2" onclick="goToStep(2)">
+                <div class="step-circle">3</div>
+                <div class="step-label">Messaging Use Case</div>
+            </div>
+            <div class="step-indicator" data-step="3" onclick="goToStep(3)">
+                <div class="step-circle">4</div>
+                <div class="step-label">Messages</div>
+            </div>
+            <div class="step-indicator" data-step="4" onclick="goToStep(4)">
+                <div class="step-circle">5</div>
+                <div class="step-label">Generate CLI</div>
+            </div>
+        </div>
+
+        <!-- Step 0: Company Info -->
+        <div class="step-panel active" id="step-0">
+            <div class="card">
+                <h2>Toll-Free Registration — Company Information</h2>
+                <p class="subtitle">Section: companyInfo — All fields are required unless marked conditional.</p>
+
+                <div class="info-box">
+                    <strong>Toll-Free Registration Flow:</strong> Unlike 10DLC, toll-free is a single registration. The toll-free number must be purchased and associated with the registration <em>before</em> submitting (ASSOCIATE_BEFORE_SUBMIT).
+                </div>
+
+                <div class="field">
+                    <label class="required" for="companyName">Company Name</label>
+                    <div class="field-meta">FieldPath: companyInfo.companyName | TEXT | max 100</div>
+                    <div class="hint">Legal name which your company is registered under.</div>
+                    <input type="text" id="companyName" maxlength="100" placeholder="Example Corp" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="website">Company Website</label>
+                    <div class="field-meta">FieldPath: companyInfo.website | TEXT | max 100</div>
+                    <div class="hint">Must be publicly accessible. Include https://</div>
+                    <input type="url" id="website" maxlength="100" placeholder="https://www.example.com" required>
+                </div>
+
+                <div class="section-title">Physical Business Address</div>
+
+                <div class="field">
+                    <label class="required" for="address1">Address 1</label>
+                    <div class="field-meta">FieldPath: companyInfo.address1 | TEXT | max 100</div>
+                    <input type="text" id="address1" maxlength="100" placeholder="123 Main Street" required>
+                </div>
+
+                <div class="field">
+                    <label for="address2">Address 2 (optional)</label>
+                    <div class="field-meta">FieldPath: companyInfo.address2 | TEXT | max 100</div>
+                    <input type="text" id="address2" maxlength="100" placeholder="Suite 400">
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="field">
+                        <label class="required" for="city">City</label>
+                        <div class="field-meta">FieldPath: companyInfo.city | TEXT | max 100</div>
+                        <input type="text" id="city" maxlength="100" placeholder="Seattle" required>
+                    </div>
+                    <div class="field">
+                        <label class="required" for="state">State / Province</label>
+                        <div class="field-meta">FieldPath: companyInfo.state | TEXT | max 50</div>
+                        <input type="text" id="state" maxlength="50" placeholder="WA" required>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="field">
+                        <label class="required" for="zipCode">Zip / Postal Code</label>
+                        <div class="field-meta">FieldPath: companyInfo.zipCode | TEXT | max 20</div>
+                        <input type="text" id="zipCode" maxlength="20" placeholder="98101" required>
+                    </div>
+                    <div class="field">
+                        <label class="required" for="country">Country</label>
+                        <div class="field-meta">FieldPath: companyInfo.country | TEXT | exactly 2 chars</div>
+                        <div class="hint">Two-letter ISO country code (e.g., US).</div>
+                        <input type="text" id="country" maxlength="2" placeholder="US" style="width:80px" required>
+                    </div>
+                </div>
+
+                <div class="section-title">Business Classification</div>
+
+                <div class="field">
+                    <label class="required" for="businessType">Business Type</label>
+                    <div class="field-meta">FieldPath: companyInfo.businessType | SELECT</div>
+                    <select id="businessType" required onchange="toggleCompanyIdFields()">
+                        <option value="">— Select —</option>
+                        <option value="PRIVATE_PROFIT">Private for-profit</option>
+                        <option value="PUBLIC_PROFIT">Public for-profit</option>
+                        <option value="NON_PROFIT">Non-profit</option>
+                        <option value="SOLE_PROPRIETOR">Sole proprietor</option>
+                        <option value="GOVERNMENT">Government</option>
+                    </select>
+                </div>
+
+                <div id="companyIdFields">
+                    <div class="conditional-note">The following fields are required unless you select <strong>Sole proprietor</strong>.</div>
+
+                    <div class="field">
+                        <label class="required" for="companyIdNumber">Company Identification Number</label>
+                        <div class="field-meta">FieldPath: companyInfo.companyIdNumber | TEXT | max 50</div>
+                        <div class="hint">Tax ID / EIN / VAT / registration number (e.g., 12-3456789).</div>
+                        <input type="text" id="companyIdNumber" maxlength="50" placeholder="12-3456789">
+                    </div>
+
+                    <div class="field">
+                        <label class="required" for="companyIdType">Identification Number Type</label>
+                        <div class="field-meta">FieldPath: companyInfo.companyIdType | SELECT</div>
+                        <select id="companyIdType">
+                            <option value="">— Select —</option>
+                            <option value="EIN">EIN</option>
+                            <option value="CBN">CBN</option>
+                            <option value="CRN">CRN</option>
+                            <option value="PROVINCIAL_NUMBER">PROVINCIAL_NUMBER</option>
+                            <option value="VAT">VAT</option>
+                            <option value="ACN">ACN</option>
+                            <option value="ABN">ABN</option>
+                            <option value="BRN">BRN</option>
+                            <option value="SIREN">SIREN</option>
+                            <option value="SIRET">SIRET</option>
+                            <option value="NZBN">NZBN</option>
+                            <option value="USt-IdNr">USt-IdNr</option>
+                            <option value="CIF">CIF</option>
+                            <option value="NIF">NIF</option>
+                            <option value="CNPJ">CNPJ</option>
+                            <option value="UID">UID</option>
+                            <option value="NEQ">NEQ</option>
+                            <option value="OTHER">OTHER</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label class="required" for="companyIdCountry">Identification Number Country</label>
+                        <div class="field-meta">FieldPath: companyInfo.companyIdCountry | TEXT | exactly 2 chars</div>
+                        <div class="hint">Two-letter ISO country code where the ID was issued (e.g., US).</div>
+                        <input type="text" id="companyIdCountry" maxlength="2" placeholder="US" style="width:80px">
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <div></div>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Contact Info →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 1: Contact Info -->
+        <div class="step-panel" id="step-1">
+            <div class="card">
+                <h2>Toll-Free Registration — Contact Information</h2>
+                <p class="subtitle">Section: contactInfo — All fields are required.</p>
+
+                <div class="field">
+                    <label class="required" for="firstName">First Name</label>
+                    <div class="field-meta">FieldPath: contactInfo.firstName | TEXT | max 100</div>
+                    <div class="hint">First name of the business point of contact.</div>
+                    <input type="text" id="firstName" maxlength="100" placeholder="Jane" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="lastName">Last Name</label>
+                    <div class="field-meta">FieldPath: contactInfo.lastName | TEXT | max 100</div>
+                    <div class="hint">Last name of the business point of contact.</div>
+                    <input type="text" id="lastName" maxlength="100" placeholder="Doe" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="supportEmail">Support Email</label>
+                    <div class="field-meta">FieldPath: contactInfo.supportEmail | TEXT | max 100</div>
+                    <div class="hint">Email of the business point of contact.</div>
+                    <input type="email" id="supportEmail" maxlength="100" placeholder="support@example.com" required>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="supportPhoneNumber">Support Phone Number</label>
+                    <div class="field-meta">FieldPath: contactInfo.supportPhoneNumber | TEXT | max 30</div>
+                    <div class="hint">E.164 format (e.g., +12065550142). No spaces, hyphens, or parentheses.</div>
+                    <input type="tel" id="supportPhoneNumber" maxlength="30" placeholder="+12065550142" required>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Messaging Use Case →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Messaging Use Case -->
+        <div class="step-panel" id="step-2">
+            <div class="card">
+                <h2>Toll-Free Registration — Messaging Use Case</h2>
+                <p class="subtitle">Section: messagingUseCase — All fields are required unless marked optional.</p>
+
+                <div class="field">
+                    <label class="required" for="monthlyMessageVolume">Monthly SMS Volume</label>
+                    <div class="field-meta">FieldPath: messagingUseCase.monthlyMessageVolume | SELECT</div>
+                    <div class="hint">Estimated number of SMS messages sent from this toll-free number each month.</div>
+                    <select id="monthlyMessageVolume" required>
+                        <option value="">— Select —</option>
+                        <option value="10">10</option>
+                        <option value="100">100</option>
+                        <option value="1,000">1,000</option>
+                        <option value="10,000">10,000</option>
+                        <option value="100,000">100,000</option>
+                        <option value="250,000">250,000</option>
+                        <option value="500,000">500,000</option>
+                        <option value="750,000">750,000</option>
+                        <option value="1,000,000">1,000,000</option>
+                        <option value="5,000,000">5,000,000</option>
+                        <option value="10,000,000+">10,000,000+</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="useCaseCategory">Use Case Category</label>
+                    <div class="field-meta">FieldPath: messagingUseCase.useCaseCategory | SELECT</div>
+                    <select id="useCaseCategory" required>
+                        <option value="">— Select —</option>
+                        <option value="TWO_FACTOR_AUTHENTICATION">Two-factor authentication</option>
+                        <option value="ONE_TIME_PASSWORDS">One-time passwords</option>
+                        <option value="NOTIFICATIONS">Notifications</option>
+                        <option value="POLLING_AND_SURVEYS">Polling and surveys</option>
+                        <option value="INFO_ON_DEMAND">Info on demand</option>
+                        <option value="PROMOTIONS_AND_MARKETING">Promotions and Marketing</option>
+                        <option value="ONE_TIME_PASSCODES">One time passcodes</option>
+                        <option value="NON_POLITICAL_POLLING_AND_SURVEY">Non political polling and survey</option>
+                        <option value="DELIVERY_NOTIFICATIONS">Delivery notifications</option>
+                        <option value="EDUCATION">Education</option>
+                        <option value="PUBLIC_ANNOUNCEMENTS">Public announcements</option>
+                        <option value="CUSTOMER_CARE">Customer care</option>
+                        <option value="NON_PROFIT">Non profit</option>
+                        <option value="ACCOUNT_NOTIFICATIONS">Account notifications</option>
+                        <option value="EVENT_NOTIFICATIONS">Event notifications</option>
+                        <option value="FINANCIAL_TRANSACTIONS">Financial transactions</option>
+                        <option value="APPOINTMENT_REMINDERS">Appointment reminders</option>
+                        <option value="HEALTH_CARE">Health care</option>
+                        <option value="BOOKING_CONFIRMATIONS">Booking confirmations</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="useCaseDetails">Use Case Details</label>
+                    <div class="field-meta">FieldPath: messagingUseCase.useCaseDetails | TEXT | 40–4096 chars</div>
+                    <div class="hint">Provide additional context about your messaging use case. Identify who the sender is, who the recipient is, and why messages are being sent. Minimum 40 characters.</div>
+                    <textarea id="useCaseDetails" minlength="40" maxlength="4096" required oninput="updateCharCount(this, 'useCaseDetailsCount')" placeholder="Example Corp sends one-time password (OTP) messages to customers who have created an account on our website. Messages are triggered when a customer initiates a login or password reset..."></textarea>
+                    <div class="char-count" id="useCaseDetailsCount">0 / 4096</div>
+                </div>
+
+                <div class="section-title">Opt-In Information</div>
+
+                <div class="field">
+                    <label class="required" for="optInType">Opt-in Category</label>
+                    <div class="field-meta">FieldPath: messagingUseCase.optInType | SELECT</div>
+                    <select id="optInType" required>
+                        <option value="">— Select —</option>
+                        <option value="VERBAL">Verbal</option>
+                        <option value="DIGITAL_FORM">Digital form</option>
+                        <option value="PAPER_FORM">Paper form</option>
+                        <option value="TEXT">Text</option>
+                        <option value="QR_CODE">QR code</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label class="required" for="optInWorkflow">Opt-in Workflow Description</label>
+                    <div class="field-meta">FieldPath: messagingUseCase.optInWorkflow | TEXT | 40–2048 chars</div>
+                    <div class="hint">Explain end-to-end how a user explicitly consents to receive text messages. Minimum 40 characters.</div>
+                    <textarea id="optInWorkflow" minlength="40" maxlength="2048" required oninput="updateCharCount(this, 'optInWorkflowCount')" placeholder="Users opt in by creating an account on https://www.example.com and checking the SMS notifications checkbox during registration. The checkbox text reads: 'I agree to receive SMS messages from Example Corp...'"></textarea>
+                    <div class="char-count" id="optInWorkflowCount">0 / 2048</div>
+                </div>
+
+                <div class="field">
+                    <label for="optInImageS3">Opt-in Workflow Image (optional)</label>
+                    <div class="field-meta">FieldPath: messagingUseCase.optInImage | ATTACHMENT | PNG/JPEG, max 400KB</div>
+                    <div class="hint">Screenshot showing how users consent to receiving messages. Provide the S3 URI. Required if opt-in is behind login, verbal, or on printed materials.</div>
+                    <input type="text" id="optInImageS3" placeholder="s3://my-bucket/opt-in-screenshot.png">
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-primary" onclick="nextStep()">Next: Message Samples →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Message Samples -->
+        <div class="step-panel" id="step-3">
+            <div class="card">
+                <h2>Toll-Free Registration — Message Samples</h2>
+                <p class="subtitle">Section: messageSamples — At least one sample is required. Use realistic messages with variable fields in brackets like [OTP Code].</p>
+
+                <div class="field">
+                    <label class="required" for="messageSample1">Message Sample 1</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample1 | TEXT | 20–1024 chars</div>
+                    <div class="hint">Should identify who is sending the message (brand name). Must reflect actual messages you plan to send.</div>
+                    <textarea id="messageSample1" minlength="20" maxlength="1024" required oninput="updateCharCount(this, 'sample1Count')" placeholder="Your One-Time Password for Example Corp is [OTP Code]. Please enter this on the verification screen to complete your login."></textarea>
+                    <div class="char-count" id="sample1Count">0 / 1024</div>
+                </div>
+
+                <div class="field">
+                    <label for="messageSample2">Message Sample 2 (optional)</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample2 | TEXT | 20–1024 chars</div>
+                    <textarea id="messageSample2" minlength="20" maxlength="1024" oninput="updateCharCount(this, 'sample2Count')" placeholder=""></textarea>
+                    <div class="char-count" id="sample2Count">0 / 1024</div>
+                </div>
+
+                <div class="field">
+                    <label for="messageSample3">Message Sample 3 (optional)</label>
+                    <div class="field-meta">FieldPath: messageSamples.messageSample3 | TEXT | 20–1024 chars</div>
+                    <textarea id="messageSample3" minlength="20" maxlength="1024" oninput="updateCharCount(this, 'sample3Count')" placeholder=""></textarea>
+                    <div class="char-count" id="sample3Count">0 / 1024</div>
+                </div>
+
+                <div class="section-title">Phone Number Configuration</div>
+
+                <div class="field">
+                    <label class="required" for="phoneMessageType">Phone Number Message Type</label>
+                    <div class="hint">Used when requesting the toll-free phone number.</div>
+                    <select id="phoneMessageType" required>
+                        <option value="TRANSACTIONAL">Transactional</option>
+                        <option value="PROMOTIONAL">Promotional</option>
+                    </select>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back</button>
+                    <button class="btn btn-generate" onclick="nextStep()">Generate CLI Commands →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Generated CLI Output -->
+        <div class="step-panel" id="step-4">
+            <div class="card">
+                <h2>Generated CLI Commands</h2>
+                <p class="subtitle">Copy and run these commands in order. Replace placeholder registration IDs with actual values from each command's response.</p>
+
+                <div class="info-box">
+                    <strong>Important:</strong> Toll-free registrations require ASSOCIATE_BEFORE_SUBMIT — you must purchase the toll-free number and associate it with the registration <em>before</em> submitting. After each command, save the returned IDs and substitute them into subsequent commands.
+                </div>
+
+                <div id="cliOutput"></div>
+
+                <div class="btn-row">
+                    <button class="btn btn-secondary" onclick="prevStep()">← Back to Edit</button>
+                    <button class="btn btn-primary" onclick="copyAllCli()">Copy All Commands</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const totalSteps = 5;
+
+        function goToStep(step) {
+            if (step < 0 || step >= totalSteps) return;
+            document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.step-indicator').forEach(s => {
+                s.classList.remove('active');
+                if (parseInt(s.dataset.step) < step) s.classList.add('completed');
+                else s.classList.remove('completed');
+            });
+            document.getElementById('step-' + step).classList.add('active');
+            document.querySelector(`.step-indicator[data-step="${step}"]`).classList.add('active');
+            currentStep = step;
+            if (step === 4) generateCli();
+            window.scrollTo(0, 0);
+        }
+
+        function nextStep() { goToStep(currentStep + 1); }
+        function prevStep() { goToStep(currentStep - 1); }
+
+        function toggleCompanyIdFields() {
+            const isSoleProp = document.getElementById('businessType').value === 'SOLE_PROPRIETOR';
+            document.getElementById('companyIdFields').style.display = isSoleProp ? 'none' : 'block';
+        }
+
+        function updateCharCount(el, countId) {
+            document.getElementById(countId).textContent = el.value.length + ' / ' + el.maxLength;
+        }
+
+        function esc(val) {
+            if (!val) return '';
+            return val.replace(/'/g, "'\\''");
+        }
+
+        function generateCli() {
+            const v = id => (document.getElementById(id)?.value || '').trim();
+            const lines = [];
+
+            function comment(text) { lines.push(`\n# ${'='.repeat(60)}\n# ${text}\n# ${'='.repeat(60)}`); }
+            function cmd(text) { lines.push(text); }
+            function note(text) { lines.push(`\n# NOTE: ${text}`); }
+
+            // ---- CREATE REGISTRATION ----
+            comment('STEP 1: Create Toll-Free Registration');
+            cmd(`aws pinpoint-sms-voice-v2 create-registration \\
+    --registration-type US_TOLL_FREE_REGISTRATION \\
+    --tags "Key=Name,Value=${esc(v('companyName'))}-TollFree"
+`);
+            note('Save the RegistrationId from the response. Replace TFN_REG_ID below.');
+
+            // ---- REQUEST PHONE NUMBER ----
+            comment('STEP 2: Request a Toll-Free Phone Number');
+            note('You must purchase the toll-free number BEFORE submitting the registration (ASSOCIATE_BEFORE_SUBMIT).');
+            note('You are charged the monthly lease fee immediately.');
+            cmd(`aws pinpoint-sms-voice-v2 request-phone-number \\
+    --iso-country-code US \\
+    --message-type ${v('phoneMessageType')} \\
+    --number-capabilities SMS \\
+    --number-type TOLL_FREE`);
+            note('Save the PhoneNumberId from the response. Replace PHONE_NUMBER_ID below.');
+
+            // ---- ASSOCIATE PHONE NUMBER ----
+            comment('STEP 3: Associate Phone Number with Registration');
+            note('ASSOCIATE_BEFORE_SUBMIT — must be done before submitting.');
+            cmd(`aws pinpoint-sms-voice-v2 create-registration-association \\
+    --registration-id TFN_REG_ID \\
+    --resource-id PHONE_NUMBER_ID`);
+
+            // ---- POPULATE FIELDS ----
+            comment('STEP 4: Populate Registration Fields');
+
+            // companyInfo
+            cmd(`# companyInfo.companyName
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.companyName \\
+    --text-value '${esc(v('companyName'))}'`);
+
+            cmd(`\n# companyInfo.website
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.website \\
+    --text-value '${esc(v('website'))}'`);
+
+            cmd(`\n# companyInfo.address1
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.address1 \\
+    --text-value '${esc(v('address1'))}'`);
+
+            if (v('address2')) {
+                cmd(`\n# companyInfo.address2
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.address2 \\
+    --text-value '${esc(v('address2'))}'`);
+            }
+
+            cmd(`\n# companyInfo.city
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.city \\
+    --text-value '${esc(v('city'))}'`);
+
+            cmd(`\n# companyInfo.state
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.state \\
+    --text-value '${esc(v('state'))}'`);
+
+            cmd(`\n# companyInfo.zipCode
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.zipCode \\
+    --text-value '${esc(v('zipCode'))}'`);
+
+            cmd(`\n# companyInfo.country
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.country \\
+    --text-value '${esc(v('country').toUpperCase())}'`);
+
+            cmd(`\n# companyInfo.businessType
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.businessType \\
+    --select-choices '${esc(v('businessType'))}'`);
+
+            if (v('businessType') !== 'SOLE_PROPRIETOR') {
+                if (v('companyIdNumber')) {
+                    cmd(`\n# companyInfo.companyIdNumber
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.companyIdNumber \\
+    --text-value '${esc(v('companyIdNumber'))}'`);
+                }
+                if (v('companyIdType')) {
+                    cmd(`\n# companyInfo.companyIdType
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.companyIdType \\
+    --select-choices '${esc(v('companyIdType'))}'`);
+                }
+                if (v('companyIdCountry')) {
+                    cmd(`\n# companyInfo.companyIdCountry
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path companyInfo.companyIdCountry \\
+    --text-value '${esc(v('companyIdCountry').toUpperCase())}'`);
+                }
+            }
+
+            // contactInfo
+            cmd(`\n# contactInfo.firstName
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path contactInfo.firstName \\
+    --text-value '${esc(v('firstName'))}'`);
+
+            cmd(`\n# contactInfo.lastName
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path contactInfo.lastName \\
+    --text-value '${esc(v('lastName'))}'`);
+
+            cmd(`\n# contactInfo.supportEmail
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path contactInfo.supportEmail \\
+    --text-value '${esc(v('supportEmail'))}'`);
+
+            cmd(`\n# contactInfo.supportPhoneNumber
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path contactInfo.supportPhoneNumber \\
+    --text-value '${esc(v('supportPhoneNumber'))}'`);
+
+            // messagingUseCase
+            cmd(`\n# messagingUseCase.monthlyMessageVolume
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messagingUseCase.monthlyMessageVolume \\
+    --select-choices '${esc(v('monthlyMessageVolume'))}'`);
+
+            cmd(`\n# messagingUseCase.useCaseCategory
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messagingUseCase.useCaseCategory \\
+    --select-choices '${esc(v('useCaseCategory'))}'`);
+
+            cmd(`\n# messagingUseCase.useCaseDetails
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messagingUseCase.useCaseDetails \\
+    --text-value '${esc(v('useCaseDetails'))}'`);
+
+            cmd(`\n# messagingUseCase.optInType
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messagingUseCase.optInType \\
+    --select-choices '${esc(v('optInType'))}'`);
+
+            cmd(`\n# messagingUseCase.optInWorkflow
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messagingUseCase.optInWorkflow \\
+    --text-value '${esc(v('optInWorkflow'))}'`);
+
+            if (v('optInImageS3')) {
+                cmd(`\n# Create opt-in image attachment
+aws pinpoint-sms-voice-v2 create-registration-attachment \\
+    --attachment-url ${esc(v('optInImageS3'))}`);
+                note('Save the RegistrationAttachmentId. Replace ATTACHMENT_ID below.');
+                cmd(`\n# messagingUseCase.optInImage
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messagingUseCase.optInImage \\
+    --registration-attachment-id ATTACHMENT_ID`);
+            }
+
+            // messageSamples
+            for (let i = 1; i <= 3; i++) {
+                const sample = v('messageSample' + i);
+                if (sample) {
+                    cmd(`\n# messageSamples.messageSample${i}
+aws pinpoint-sms-voice-v2 put-registration-field-value \\
+    --registration-id TFN_REG_ID \\
+    --field-path messageSamples.messageSample${i} \\
+    --text-value '${esc(sample)}'`);
+                }
+            }
+
+            // ---- SUBMIT ----
+            comment('STEP 5: Submit Registration');
+            cmd(`aws pinpoint-sms-voice-v2 submit-registration-version \\
+    --registration-id TFN_REG_ID`);
+            note('Toll-free registration review typically takes 1-2 weeks.');
+            cmd(`\n# Check status:
+aws pinpoint-sms-voice-v2 describe-registrations \\
+    --registration-ids TFN_REG_ID`);
+
+            // ---- TEST MESSAGE ----
+            comment('STEP 6: Send a Test Message (after approval)');
+            cmd(`aws pinpoint-sms-voice-v2 send-text-message \\
+    --destination-phone-number "+15551234567" \\
+    --origination-identity "PHONE_NUMBER_ID_OR_E164" \\
+    --message-body '${esc(v('messageSample1') || 'Your verification code is 123456.')}' \\
+    --message-type ${v('phoneMessageType')}`);
+
+            // Render
+            const container = document.getElementById('cliOutput');
+            container.textContent = '';
+            const block = document.createElement('div');
+            block.className = 'cli-block';
+            block.id = 'allCliCommands';
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-btn';
+            copyBtn.textContent = 'Copy All';
+            copyBtn.addEventListener('click', copyAllCli);
+            block.appendChild(copyBtn);
+
+            for (const line of lines) {
+                const span = document.createElement('span');
+                if (line.startsWith('\n# =') || line.startsWith('# =') ||
+                    line.startsWith('\n# ') || line.startsWith('# ')) {
+                    span.className = 'comment';
+                }
+                span.textContent = line;
+                block.appendChild(span);
+                block.appendChild(document.createTextNode('\n'));
+            }
+            container.appendChild(block);
+        }
+
+        function copyAllCli() {
+            const el = document.getElementById('allCliCommands');
+            const text = el.innerText.replace('Copy All', '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = el.querySelector('.copy-btn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy All', 2000);
+            });
+        }
+    </script>
+
+    <!-- Cleanup Section -->
+    <div class="container">
+        <div style="background:#e8f5e9;border:1px solid #1b660f;border-radius:8px;padding:16px;margin-top:24px">
+            <strong>🧹 Cleanup — Removing Resources After Testing</strong>
+            <p style="margin:8px 0;font-size:14px">To avoid ongoing charges, delete the resources created by this wizard:</p>
+            <ol style="margin:8px 0 0 20px;font-size:14px">
+                <li><strong>Delete the phone number:</strong> <code>aws pinpoint-sms-voice-v2 release-phone-number --phone-number-id &lt;PHONE_NUMBER_ID&gt;</code></li>
+                <li><strong>Delete the toll-free registration:</strong> <code>aws pinpoint-sms-voice-v2 delete-registration --registration-id &lt;REGISTRATION_ID&gt;</code></li>
+            </ol>
+            <p style="margin:8px 0 0;font-size:13px;color:#545b64">Note: Registration fees are non-refundable. Monthly phone number lease charges stop after the number is released.</p>
+        </div>
+    </div>
+</body>
+</html>

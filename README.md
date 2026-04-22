@@ -1,6 +1,10 @@
 # 10DLC Registration Automation
 
-Automated 10DLC registration pipeline using AWS Step Functions, EventBridge, Lambda, DynamoDB, and S3. Handles the full lifecycle — brand registration, optional vetting, campaign registration, phone number provisioning, and association — with event-driven callbacks and human-in-the-loop for rejections.
+Automated 10DLC registration pipeline using AWS Step Functions, Amazon EventBridge, AWS Lambda, Amazon DynamoDB, and Amazon S3. Handles the full lifecycle - brand registration, optional vetting, campaign registration, phone number provisioning, and association - with event-driven callbacks and human-in-the-loop for rejections.
+
+> **Important:** This sample code is provided as-is for demonstration and educational purposes. It is not intended for production use without thorough review and testing. You are responsible for making your own independent assessment of this sample code and for implementing appropriate security controls, testing, and compliance measures for your specific use case. See the [AWS Shared Responsibility Model](https://aws.amazon.com/compliance/shared-responsibility-model/) for more information.
+
+> **Cost Warning:** Deploying this solution creates AWS resources that incur costs. Additionally, 10DLC registration fees apply (brand registration, optional $40 vetting, monthly campaign fee, monthly phone number lease). See [AWS End User Messaging Pricing](https://aws.amazon.com/end-user-messaging/pricing/) and the [Cleanup](#cleanup) section to remove resources when no longer needed.
 
 ## Architecture
 
@@ -362,12 +366,55 @@ sam build && sam deploy
 
 ## Security
 
-- S3 bucket blocks all public access; uploads use time-limited presigned URLs
-- S3 server-side encryption (AES-256) enabled
-- All Lambda functions use least-privilege IAM policies scoped to specific resources
-- API Gateway CORS is configurable via the `AllowedOrigin` parameter
-- No AWS credentials are exposed to the front end
-- DynamoDB encryption at rest enabled by default
+See the [Security](#security-1) section below for details on the shared responsibility model and security controls.
+
+## Security
+
+This solution follows the [AWS Shared Responsibility Model](https://aws.amazon.com/compliance/shared-responsibility-model/). AWS is responsible for the security of the underlying cloud infrastructure. You are responsible for securing your workload, including:
+
+- **IAM configuration** - Review and restrict IAM policies for your environment. This sample uses `Resource: '*'` for certain AWS End User Messaging SMS actions that do not support resource-level permissions (see [ADR-001](documentation/architecture/decision-records/adr-001-iam-resource-wildcards.md)).
+- **Network access** - Configure the `AllowedOrigin` parameter to restrict CORS to your specific domain in production (do not use `*`).
+- **Data protection** - Registration data in Amazon DynamoDB may contain business-sensitive information. Point-in-time recovery is enabled by default.
+- **Secrets management** - This solution does not store secrets. AWS credentials are managed through IAM roles.
+- **Monitoring** - Enable [AWS CloudTrail](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html) for API audit logging and [Amazon CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html) alarms for error monitoring in production.
+
+### Security controls implemented in this sample
+
+| Control | Implementation |
+|---------|---------------|
+| Encryption at rest | Amazon S3 (AES-256), Amazon DynamoDB (SSE enabled) |
+| Encryption in transit | Amazon S3 bucket policy enforces TLS, Amazon API Gateway uses HTTPS |
+| Access control | Per-function IAM roles with scoped actions, Amazon S3 Block Public Access |
+| Upload security | Time-limited presigned URLs (10 min), file type validation (PNG/JPEG/PDF only, 500 KB max) |
+| Amazon S3 versioning | Enabled for upload bucket |
+| Access logging | Amazon S3 server access logs stored in dedicated logging bucket |
+| Data lifecycle | Amazon S3 objects auto-deleted after 90 days, old versions after 30 days |
+
+### Your responsibility before production use
+
+1. Restrict `AllowedOrigin` to your domain
+2. Add authentication to Amazon API Gateway (Amazon Cognito, Lambda authorizer, or IAM)
+3. Enable AWS CloudTrail for API audit logging
+4. Configure Amazon CloudWatch alarms for error monitoring
+5. Consider adding [AWS WAF](https://docs.aws.amazon.com/waf/latest/developerguide/waf-chapter.html) in front of Amazon API Gateway
+
+## Cleanup
+
+To remove all resources created by this stack and avoid ongoing charges:
+
+```bash
+sam delete --stack-name <your-stack-name> --region <your-region>
+```
+
+If you created any 10DLC registrations via the workflow, delete them separately (AWS CloudFormation does not manage these API-created resources):
+
+```bash
+aws pinpoint-sms-voice-v2 release-phone-number --phone-number-id <PHONE_NUMBER_ID>
+aws pinpoint-sms-voice-v2 delete-registration --registration-id <CAMPAIGN_REG_ID>
+aws pinpoint-sms-voice-v2 delete-registration --registration-id <BRAND_REG_ID>
+```
+
+**Cost note:** Registration fees (brand, vetting) are non-refundable. Monthly phone number lease charges stop after the number is released.
 
 ## Additional Resources
 
