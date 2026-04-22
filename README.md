@@ -11,35 +11,7 @@ Automated 10DLC registration pipeline using AWS Step Functions, Amazon EventBrid
 
 ## Architecture
 
-```
-┌─────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│  Front End   │────▶│ API Gateway  │────▶│  Lambda      │────▶│  DynamoDB       │
-│  (Wizard)    │     │  (HTTP API)  │     │  (Intake)    │     │  (Registrations)│
-└─────────────┘     └─────────────┘     └──────┬───────┘     └─────────────────┘
-       │                                        │
-       │  presigned URL                         ▼
-       │  upload ──────▶ S3 Bucket     ┌──────────────────┐
-       │                (Staging)      │  Step Functions   │
-       │                               │  State Machine    │
-       │                               │                   │
-       │                               │  1. Create Brand  │
-       │                               │  2. Wait ◀──────── EventBridge
-       │                               │  3. Vet Brand     │  (Registration
-       │                               │  4. Wait ◀────────│   Status Change)
-       │                               │  5. Create Camp.  │
-       │                               │  6. Wait ◀────────│
-       │                               │  7. Request Phone │
-       │                               │  8. Associate     │
-       │                               │  9. Complete      │
-       │                               └────────┬─────────┘
-       │                                        │
-       │                               ┌────────▼─────────┐
-       │                               │  SNS             │
-       │                               │  (Notifications)  │
-       │                               └──────────────────┘
-```
-
-A full architecture diagram is available at `documentation/architecture/10DLC Registration Automation Architecture.png` (source: `documentation/architecture/10dlc-registration-automation-system-architecture.drawio`).
+![10DLC Registration Automation Architecture](documentation/architecture/10DLC%20Registration%20Automation%20Architecture.png)
 
 ## How It Works
 
