@@ -15,8 +15,7 @@ Security review flagged "AWS End User Messaging SMS" as an invented or fictitiou
 service name. The scanner's service registry did not recognize this name and flagged
 it in the frontend HTML files.
 
-The finding appeared in `frontend/10dlc-registration-wizard.html` and
-`frontend/toll-free-registration-wizard.html`.
+The finding appeared in `frontend/10dlc-registration-wizard.html`.
 
 ## Decision
 

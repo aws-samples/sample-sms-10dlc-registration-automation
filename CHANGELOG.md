@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - State machine vetting failure catch block missing ResultPath (crashed notification Lambda)
 - State machine Task.Token context object reference ($.Task.Token to $$.Task.Token)
 - Throughput numbers corrected (AT&T: 0.2 MPS, not 75 msg/min)
-- CLI parameter --text-choices corrected to --select-choices in toll-free wizard
+- CLI parameter --text-choices corrected to --select-choices in toll-free wizard (moved to separate repo)
 - innerHTML usage replaced with DOM methods in HTML wizards
 
 ### Security
