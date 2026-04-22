@@ -39,7 +39,7 @@ Automated 10DLC registration pipeline using AWS Step Functions, Amazon EventBrid
        │                               └──────────────────┘
 ```
 
-A full draw.io architecture diagram is available at `documentation/architecture/10dlc-registration-automation-system-architecture.drawio`.
+A full architecture diagram is available at `documentation/architecture/10DLC Registration Automation Architecture.png` (source: `documentation/architecture/10dlc-registration-automation-system-architecture.drawio`).
 
 ## How It Works
 
