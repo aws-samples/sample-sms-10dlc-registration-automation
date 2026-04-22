@@ -1,3 +1,6 @@
+<!-- Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0 -->
+
 # 10DLC Registration Automation
 
 Automated 10DLC registration pipeline using AWS Step Functions, Amazon EventBridge, AWS Lambda, Amazon DynamoDB, and Amazon S3. Handles the full lifecycle - brand registration, optional vetting, campaign registration, phone number provisioning, and association - with event-driven callbacks and human-in-the-loop for rejections.

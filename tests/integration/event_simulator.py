@@ -6,7 +6,7 @@ Synthetic EventBridge Event Simulator
 Instead of publishing to EventBridge (which blocks reserved 'aws.*' sources),
 this simulator directly calls SendTaskSuccess/SendTaskFailure on the Step Functions
 task tokens stored in DynamoDB. This exercises the same resume logic that the
-Event Router Lambda uses, just bypassing the EventBridge â†’ Lambda hop.
+Event Router Lambda uses, just bypassing the EventBridge -> Lambda hop.
 
 For testing the Event Router Lambda itself, use the SAM local invoke fixtures
 in tests/events/.
@@ -54,7 +54,7 @@ class EventSimulator:
                 'status': 'COMPLETE',
             })
         )
-        print(f'  âœ“ SendTaskSuccess for "{token_key}" (request={request_id})')
+        print(f'  OK SendTaskSuccess for "{token_key}" (request={request_id})')
 
     def send_task_failure(self, request_id, token_key, error='REQUIRES_UPDATES'):
         """
@@ -71,9 +71,9 @@ class EventSimulator:
             error=error,
             cause=f'Synthetic test: {error}',
         )
-        print(f'  âœ“ SendTaskFailure for "{token_key}" error={error} (request={request_id})')
+        print(f'  OK SendTaskFailure for "{token_key}" error={error} (request={request_id})')
 
-    # â”€â”€ Convenience methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ---- Convenience methods ------------------------------------------
 
     def send_brand_approved(self, request_id):
         return self.send_task_success(request_id, 'brand', 'synthetic-brand-reg')
@@ -93,7 +93,7 @@ class EventSimulator:
     def send_campaign_rejected(self, request_id):
         return self.send_task_failure(request_id, 'campaign', 'REQUIRES_UPDATES')
 
-    # â”€â”€ Internal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ---- Internal -----------------------------------------------------
 
     def _get_token(self, request_id, token_key, timeout=60, poll_interval=3):
         """Poll DynamoDB until the task token appears."""

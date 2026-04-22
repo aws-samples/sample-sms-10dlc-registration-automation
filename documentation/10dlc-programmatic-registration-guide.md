@@ -1,3 +1,6 @@
+<!-- Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0 -->
+
 # Programmatic 10DLC Registration Guide
 
 ## AWS End User Messaging SMS — CLI Walkthrough
