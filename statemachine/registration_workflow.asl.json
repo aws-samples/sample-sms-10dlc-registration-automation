@@ -13,6 +13,20 @@
         }
       },
       "ResultPath": "$.brandResult",
+      "Next": "NotifyBrandSubmitted"
+    },
+    "NotifyBrandSubmitted": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "BRAND_SUBMITTED",
+          "brandResult.$": "$.brandResult"
+        }
+      },
+      "ResultPath": "$.submitNotificationResult",
       "Next": "WaitForBrandApproval"
     },
     "WaitForBrandApproval": {
@@ -95,6 +109,20 @@
         }
       },
       "ResultPath": "$.vettingResult",
+      "Next": "NotifyVettingSubmitted"
+    },
+    "NotifyVettingSubmitted": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "VETTING_SUBMITTED",
+          "vettingResult.$": "$.vettingResult"
+        }
+      },
+      "ResultPath": "$.vettingNotificationResult",
       "Next": "WaitForVettingApproval"
     },
     "WaitForVettingApproval": {
@@ -167,6 +195,20 @@
         }
       },
       "ResultPath": "$.campaignResult",
+      "Next": "NotifyCampaignSubmitted"
+    },
+    "NotifyCampaignSubmitted": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${NotificationFunctionArn}",
+        "Payload": {
+          "requestId.$": "$.requestId",
+          "type": "CAMPAIGN_SUBMITTED",
+          "campaignResult.$": "$.campaignResult"
+        }
+      },
+      "ResultPath": "$.campaignNotificationResult",
       "Next": "WaitForCampaignApproval"
     },
     "WaitForCampaignApproval": {

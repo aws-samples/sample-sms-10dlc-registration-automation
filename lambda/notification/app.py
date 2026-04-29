@@ -18,6 +18,9 @@ TOPIC_ARN = os.environ['NOTIFICATION_TOPIC_ARN']
 DRY_RUN = os.environ.get('DRY_RUN', 'false').lower() == 'true'
 
 SUBJECTS = {
+    'BRAND_SUBMITTED': '[INFO] 10DLC Brand Registration Submitted',
+    'VETTING_SUBMITTED': '[INFO] 10DLC Brand Vetting Submitted',
+    'CAMPAIGN_SUBMITTED': '[INFO] 10DLC Campaign Registration Submitted',
     'BRAND_REJECTED': '[WARNING] 10DLC Brand Registration Requires Updates',
     'VETTING_FAILED': '[WARNING] 10DLC Brand Vetting Did Not Pass - Action Required',
     'CAMPAIGN_REJECTED': '[WARNING] 10DLC Campaign Registration Requires Updates',
@@ -133,7 +136,13 @@ def build_message(request_id, notification_type, error, item, phone_result):
         '',
     ]
 
-    if notification_type == 'BRAND_REJECTED':
+    if notification_type == 'BRAND_SUBMITTED':
+        lines.extend(_brand_submitted(request_id, item))
+    elif notification_type == 'VETTING_SUBMITTED':
+        lines.extend(_vetting_submitted(request_id, item))
+    elif notification_type == 'CAMPAIGN_SUBMITTED':
+        lines.extend(_campaign_submitted(request_id, item))
+    elif notification_type == 'BRAND_REJECTED':
         lines.extend(_brand_rejected(request_id, brand_reg_id, company_name))
     elif notification_type == 'VETTING_FAILED':
         lines.extend(_vetting_failed(request_id, vetting_reg_id, company_name))
@@ -154,6 +163,80 @@ def build_message(request_id, notification_type, error, item, phone_result):
     ])
 
     return '\n'.join(lines)
+
+
+def _brand_submitted(request_id, item):
+    """Build brand submission confirmation."""
+    brand_reg_id = item.get('brandRegId', '-')
+    company_name = item.get('brandFields', {}).get('companyName', 'Unknown')
+    tax_id = item.get('brandFields', {}).get('taxId', '-')
+    return [
+        'BRAND REGISTRATION SUBMITTED SUCCESSFULLY',
+        '-' * 30,
+        '',
+        'Your 10DLC brand registration has been submitted for review.',
+        'No action is needed — you will be notified when the review is complete.',
+        '',
+        'Details:',
+        f'  Company:       {company_name}',
+        f'  Brand Reg ID:  {brand_reg_id}',
+        f'  Tax ID (EIN):  {tax_id}',
+        '',
+        'What happens next:',
+        '  - Brand review typically completes within minutes to a few hours',
+        '  - You will receive an email when the brand is approved or rejected',
+        '  - If approved, the workflow automatically proceeds to campaign registration',
+        '  - If vetting is enabled, it will run after brand approval',
+    ]
+
+
+def _vetting_submitted(request_id, item):
+    """Build vetting submission confirmation."""
+    vetting_reg_id = item.get('vettingRegId', '-')
+    company_name = item.get('brandFields', {}).get('companyName', 'Unknown')
+    return [
+        'BRAND VETTING SUBMITTED SUCCESSFULLY',
+        '-' * 30,
+        '',
+        'Your 10DLC brand vetting request has been submitted.',
+        'No action is needed — you will be notified when vetting completes.',
+        '',
+        'Details:',
+        f'  Company:        {company_name}',
+        f'  Vetting Reg ID: {vetting_reg_id}',
+        '',
+        'What happens next:',
+        '  - Vetting is performed by a third party and typically takes a few business days',
+        '  - Passing vetting increases your throughput limits significantly',
+        '  - If vetting fails, you can still proceed with standard (lower) limits',
+        '  - You will receive an email with the result either way',
+    ]
+
+
+def _campaign_submitted(request_id, item):
+    """Build campaign submission confirmation."""
+    campaign_reg_id = item.get('campaignRegId', '-')
+    campaign_fields = item.get('campaignFields', {})
+    use_case = campaign_fields.get('useCase', '-')
+    campaign_name = campaign_fields.get('campaignName', '-')
+    return [
+        'CAMPAIGN REGISTRATION SUBMITTED SUCCESSFULLY',
+        '-' * 30,
+        '',
+        'Your 10DLC campaign registration has been submitted for review.',
+        'No action is needed — you will be notified when the review is complete.',
+        '',
+        'Details:',
+        f'  Campaign Name:   {campaign_name}',
+        f'  Campaign Reg ID: {campaign_reg_id}',
+        f'  Use Case:        {use_case}',
+        '',
+        'What happens next:',
+        '  - Campaign review can take up to 4-6 weeks',
+        '  - You will receive an email when the campaign is approved or rejected',
+        '  - If approved, a phone number will be provisioned and associated automatically',
+        '  - You will receive a final completion email with the phone number details',
+    ]
 
 
 def _brand_rejected(request_id, brand_reg_id, company_name):
