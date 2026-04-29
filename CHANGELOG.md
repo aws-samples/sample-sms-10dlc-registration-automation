@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Submission confirmation notifications** — immediate email alerts when brand, vetting, and campaign registrations are submitted, including registration IDs and expected timelines
 - Dry run mode for all Lambda functions (set DryRun=true SAM parameter)
 - Vetting human intervention - vetting failures pause the workflow for operator decision
 - Rejection reason lookup - notifications include specific rejection details from the API
